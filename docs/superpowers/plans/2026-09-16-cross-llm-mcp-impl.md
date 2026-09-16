@@ -1,3 +1,14 @@
+---
+status: active
+role: implementation
+date: 2026-09-16
+last_reviewed: 2026-09-16
+superseded_by: null
+blocks_on:
+  - docs/superpowers/specs/2026-09-16-cross-llm-mcp-design.md
+topic: cross-llm-mcp
+---
+
 # cross-llm-mcp Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
