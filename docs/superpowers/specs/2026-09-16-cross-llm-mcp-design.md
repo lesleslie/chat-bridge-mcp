@@ -1,6 +1,6 @@
 ______________________________________________________________________
 
-## status: draft role: spec date: 2026-09-16 last_reviewed: 2026-09-16 superseded_by: null blocks_on: [] topic: peer-bridge-design
+## status: complete role: spec date: 2026-09-16 last_reviewed: 2026-09-16 superseded_by: null blocks_on: [plans/2026-09-16-cross-llm-mcp-impl.md] topic: peer-bridge-design
 
 # cross-llm-mcp — Design
 
