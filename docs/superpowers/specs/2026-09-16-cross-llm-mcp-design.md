@@ -371,7 +371,7 @@ already-registered tools.
 from cross_llm_mcp.config import CrossLLMConfig, DEFAULT_PORT
 from cross_llm_mcp.peers.claude import ClaudeDesktopAdapter
 from cross_llm_mcp.peers.chatgpt import ChatGPTDesktopAdapter
-from cross_llm_mcp.factories import create_runtime_components
+from mcp_common.server import create_runtime_components
 
 # Module-level singleton FastMCP instance. Tools are bound to it via
 # _tools.py at import time (per §4 module-layout note). When
