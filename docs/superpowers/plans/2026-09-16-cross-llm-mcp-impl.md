@@ -481,21 +481,21 @@ Expected: FAIL with `ModuleNotFoundError: No module named 'cross_llm_mcp.config'
 from __future__ import annotations
 from pathlib import Path
 
-from oneiric.core.config import OneiricMCPConfig
-from oneiric.core.settings import load_settings   # Oneiric's canonical loader
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Single source of truth for the bridge port. Catalog grep target.
 DEFAULT_PORT: int = 3057
 
 
-class CrossLLMConfig(OneiricMCPConfig):
+class CrossLLMConfig(BaseSettings):
     """Configuration for cross-llm-mcp.
 
-    Env var overrides flow through Oneiric's settings layer (which
-    honors CROSS_LLM_MCP_*). OneiricMCPConfig extends BaseModel (not
-    BaseSettings), so we DO NOT use `model_config = SettingsConfigDict(...)`
-    here — that override is silently ignored on a BaseModel subclass.
-    Env vars apply via `load_settings()` below.
+    Extends `pydantic_settings.BaseSettings` directly (not
+    `OneiricMCPConfig`) because OneiricMCPConfig is `BaseModel`-based
+    and silently ignores `SettingsConfigDict` overrides. BaseSettings
+    gives us real env-var precedence: CROSS_LLM_MCP_HTTP_PORT etc.
+    apply, then the YAML defaults at settings/cross-llm-mcp.yaml,
+    then the explicit-constructor kwargs (highest precedence).
     """
 
     http_port: int = DEFAULT_PORT
@@ -517,6 +517,12 @@ class CrossLLMConfig(OneiricMCPConfig):
     guardrail_template: str | None = None
     strict_mode_on_start: bool = True
 
+    model_config = SettingsConfigDict(
+        env_prefix="CROSS_LLM_MCP_",
+        env_file=".env",
+        extra="allow",
+    )
+
     def validate_for_start(self) -> None:
         """Fail fast on misconfiguration that guarantees a streaming_timeout.
 
@@ -533,22 +539,9 @@ class CrossLLMConfig(OneiricMCPConfig):
 
 
 def load_config(**overrides) -> CrossLLMConfig:
-    """Load CrossLLMConfig via Oneiric's settings loader.
-
-    Honors (in order): env vars prefixed CROSS_LLM_MCP_, the YAML
-    defaults file at settings/cross-llm-mcp.yaml (when present), and
-    explicit kwargs to this function (highest precedence).
-    """
-    settings = load_settings(
-        "cross-llm-mcp",
-        OneiricMCPConfig,
-        # env_prefix is configured at the Oneiric side; we pass the
-        # CrossLLMConfig subclass and Oneiric handles the env-var reading
-        # (because env-var support requires BaseSettings at the BaseModel
-        # base, Oneiric layers its own env support around it).
-        overrides=overrides or None,
-    )
-    return settings
+    """Build CrossLLMConfig with the standard Pydantic precedence:
+    explicit kwargs > env vars > YAML defaults > field defaults."""
+    return CrossLLMConfig(**overrides)
 ```
 
 - [ ] **Step 4: Run the test to verify it passes**
@@ -1437,7 +1430,11 @@ class DesktopPeerAdapter(ABC):
         try:
             result = await self._send_uncounted(prompt, system=system)
         except BridgeError as exc:
-            record_error(self.feed_state)  # increments errors_total; the free function takes no message
+            # `record_error(state)` only sets `last_error_at` / `first_unhealthy_at`
+            # timestamps; it does NOT increment `errors_total`. We do that
+            # manually so the per-peer four-signal shape stays correct.
+            self.feed_state.errors_total += 1
+            record_error(self.feed_state)
             self._last_call_succeeded = False
             self._last_call_error = str(exc)
             self._last_call_at = datetime.now(UTC)
@@ -1929,11 +1926,16 @@ Expected: FAIL with `ModuleNotFoundError: No module named 'cross_llm_mcp._tools'
 
 ```python
 from __future__ import annotations
-from typing import Any
+from typing import Any, Literal
 
 from cross_llm_mcp.exceptions import (
     BridgeError,
     PeerNotAttachedError,
+    SelectorMissingError,
+    SelectorUnmatchedError,
+    StreamingTimeoutError,
+    GuardrailFailure,
+    CDPProtocolError,
 )
 from cross_llm_mcp.guardrail import wrap as guardrail_wrap
 from cross_llm_mcp.peers.base import (
@@ -1973,53 +1975,92 @@ def _require(peer: str) -> DesktopPeerAdapter:
 
 
 def _format_error(exc: BridgeError) -> str:
-    """Map a BridgeError to the user-facing chat-surface string (§10a.3)."""
-    p = exc.peer or "internal"
-    table: dict[type, str] = {
-        PeerNotAttachedError: (
-            "{p} peer is not attached. Run `cross-llm-mcp restart`."
-        ),
-        # ... map the other 5 classes similarly
-    }
-    return table.get(type(exc), f"internal error; see logs (peer={p})").format(p=p)
+    """Map a BridgeError to the user-facing chat-surface string (§10a.3).
+
+    Used both inside `_error_result` (for tool error responses) and by
+    the round-3 test fixture (Task 11b `test_chat_surface_string_for_exception`).
+    """
+    if isinstance(exc, PeerNotAttachedError):
+        return f"{exc.peer} peer is not attached. Run `cross-llm-mcp restart`."
+    if isinstance(exc, SelectorMissingError):
+        return f"{exc.peer} selectors missing. See settings/selectors.yaml."
+    if isinstance(exc, SelectorUnmatchedError):
+        name = (exc.context or {}).get("selector_name", "?")
+        return f"{exc.peer} selector '{name}' did not match. Update settings/selectors.yaml and `cross-llm-mcp restart`."
+    if isinstance(exc, StreamingTimeoutError):
+        timeout = (exc.context or {}).get("timeout_s", "?")
+        return f"{exc.peer} response did not complete within {timeout}s."
+    if isinstance(exc, GuardrailFailure):
+        return "Internal: prompt rejected by guardrail. Report as a bug."
+    if isinstance(exc, CDPProtocolError):
+        return f"{exc.peer} CDP target returned an error. Run `cross-llm-mcp restart`."
+    return f"internal error; see logs (peer={exc.peer or 'internal'})"
+
+
+def _error_result(exc: BridgeError):
+    """Build a FastMCP CallToolResult with `isError=True` carrying the
+    chat-surface message (per round-4 mcp-developer C1)."""
+    from fastmcp.tools.tool import CallToolResult, TextContent
+    return CallToolResult(
+        content=[TextContent(type="text", text=_format_error(exc))],
+        is_error=True,
+    )
 
 
 @mcp.tool(name="ask_chatgpt")
-async def ask_chatgpt(prompt: str, system: str | None = None) -> str:
-    """Type `prompt` (verbatim) into ChatGPT Desktop's currently-active chat.
+async def ask_chatgpt(
+    question: str,
+    system: str | None = None,
+) -> str:
+    """Type `question` (verbatim) into ChatGPT Desktop's currently-active chat.
 
     See spec §7.1. No guardrail — the receiving model is supposed to
     follow the text, not ignore it.
+
+    On `BridgeError`, returns a `CallToolResult(isError=True)` carrying
+    the chat-surface error string per §10a.3 (round-4 mcp-developer C1).
     """
     peer = _require("chatgpt")
     try:
-        text = (system + "\n\n" if system else "") + prompt
+        text = (system + "\n\n" if system else "") + question
         reply = await peer.send(text)
     except BridgeError as exc:
-        return _format_error(exc)
+        return _error_result(exc)
     return reply.text
 
 
 @mcp.tool(name="ask_claude")
-async def ask_claude(prompt: str, system: str | None = None) -> str:
-    """Symmetric to ask_chatgpt, targeting Claude Desktop."""
+async def ask_claude(
+    question: str,
+    system: str | None = None,
+) -> str:
+    """Symmetric to ask_chatgpt, targeting Claude Desktop.
+
+    Parameter name `question` (not `prompt`) matches spec §7.2 / §5.1.a
+    and the wire-level JSON key (round-4 mcp-developer C3).
+    """
     peer = _require("claude")
     try:
-        text = (system + "\n\n" if system else "") + prompt
+        text = (system + "\n\n" if system else "") + question
         reply = await peer.send(text)
     except BridgeError as exc:
-        return _format_error(exc)
+        return _error_result(exc)
     return reply.text
 
 
+# Round-4 mcp-developer C2: Literal["claude"] / Literal["chatgpt"] constraints
+# are load-bearing security guardrail metadata — they restrict the JSON
+# Schema enum that MCP clients can send. Without them, an MCP client
+# could pass source_peer="system_prompt" or any other string.
 @mcp.tool(name="forward_chatgpt")
 async def forward_chatgpt(
     source_reply: str,
     *,
-    source_peer: str,
+    source_peer: Literal["claude"],
     ask_for_opinion: bool = True,
 ) -> str:
-    """Wrap `source_reply` in nonce-protected isolation framing and type into ChatGPT Desktop.
+    """Wrap `source_reply` (a prior output from `claude`) in nonce-protected
+    isolation framing and type into ChatGPT Desktop.
 
     See spec §7.3. The framing is the only line of defense against
     indirect prompt injection; treat it as a soft directive (§10a.2).
@@ -2031,7 +2072,7 @@ async def forward_chatgpt(
         )
         reply = await peer.send(wrapped)
     except BridgeError as exc:
-        return _format_error(exc)
+        return _error_result(exc)
     return reply.text
 
 
@@ -2039,7 +2080,7 @@ async def forward_chatgpt(
 async def forward_claude(
     source_reply: str,
     *,
-    source_peer: str,
+    source_peer: Literal["chatgpt"],
     ask_for_opinion: bool = True,
 ) -> str:
     """Symmetric to forward_chatgpt, targeting Claude Desktop."""
@@ -2050,7 +2091,7 @@ async def forward_claude(
         )
         reply = await peer.send(wrapped)
     except BridgeError as exc:
-        return _format_error(exc)
+        return _error_result(exc)
     return reply.text
 
 
@@ -2064,7 +2105,9 @@ async def list_peers() -> list[dict[str, Any]]:
 
 
 @mcp.tool(name="get_peer_health")
-async def get_peer_health(peer: str) -> dict[str, Any]:
+async def get_peer_health(
+    peer: Literal["claude", "chatgpt"],
+) -> dict[str, Any]:
     """Return a deep PeerHealth snapshot for the named peer."""
     p = _require(peer)
     h = await p.health()
@@ -2743,19 +2786,16 @@ class CrossLLMServer(BaseOneiricServerMixin):
         await self.claude.attach()
         await self.chatgpt.attach()
         _tools.set_clients(claude=self.claude, chatgpt=self.chatgpt)
-        # /health envelope wired (per mcp-common's register_http_health_route):
+        # /health envelope wired (per mcp-common's register_http_health_route).
+        # Per spec §4a (decision log row 30) and round-4 mcp-developer review:
+        # `extra_components` accepts `list[dict[str, t.Any]]` — pass an EMPTY list
+        # so per-peer detail lives exclusively in `get_peer_health()` (the dedicated
+        # tool). Tuples/lambdas here are silently no-ops; do not reintroduce.
         register_http_health_route(
             self.mcp,
             service_name="cross-llm-mcp",
             version=__version__,
-            extra_components=[
-                # Per-peer four-signal shape (entities_count, errors_total,
-                # cycles_total, last_updated_timestamp). The MCP wire surface
-                # exposes per-peer detail via get_peer_health() tool; this
-                # envelope carries only aggregate-ready components.
-                ("claude",  lambda: self.claude.health().__dict__),
-                ("chatgpt", lambda: self.chatgpt.health().__dict__),
-            ],
+            extra_components=[],
         )
         await self._create_startup_snapshot(custom_components={
             "claude":  self.claude.status().__dict__,
@@ -2835,261 +2875,6 @@ git commit -m "feat(server): Task 11b — full lifecycle + /health envelope + in
 
 ---
 
-- [ ] **Step 1: Write the failing test**
-
-`tests/integration/test_server_lifecycle.py`:
-
-```python
-from __future__ import annotations
-import os
-import signal
-import socket
-import subprocess
-import sys
-import time
-
-import pytest
-import requests
-
-
-def _free_port() -> int:
-    s = socket.socket()
-    s.bind(("", 0))
-    p = s.getsockname()[1]
-    s.close()
-    return p
-
-
-@pytest.fixture(scope="module")
-def fake_cdp(tmp_path_factory):
-    """Spin up a minimal HTTP + WS server that mimics /json + Runtime.evaluate
-    for the e2e lifecycle test. Returns dict with port_http, port_ws."""
-    # Simple subprocess runner: use python -m http.server for the HTTP half
-    # and a separate WS subprocess. To keep this test fast, we run a single
-    # tiny script that handles both ports. Implementer creates
-    # tests/integration/_fake_cdp_server.py (a ~80-line script) that listens
-    # on two free ports and serves both. The CLI subprocess for
-    # cross-llm-mcp uses CROSS_LLM_MCP_CDP_HTTP_PORT / CDP_CHATGPT_PORT env
-    # overrides to point at this fixture.
-    fixture_path = (
-        Path(__file__).parent / "_fake_cdp_server.py"
-    )
-    assert fixture_path.exists(), (
-        "tests/integration/_fake_cdp_server.py must exist before this test runs"
-    )
-    proc = subprocess.Popen([sys.executable, str(fixture_path)])
-    # Wait for HTTP port to come up
-    for _ in range(50):
-        try:
-            r = requests.get(f"http://127.0.0.1:{fixture_path.expected_http_port}/json", timeout=0.2)
-            if r.status_code == 200:
-                break
-        except Exception:
-            time.sleep(0.1)
-    else:
-        proc.kill()
-        raise RuntimeError("fake CDP fixture did not come up")
-    yield {"proc": proc, "http_port": 9230, "ws_port": 9231}
-    proc.kill()
-```
-
-(Note: this fixture is over-simplified for plan purposes. Implementer writes the full `_fake_cdp_server.py` helper as part of the task.)
-
-```python
-@pytest.fixture(scope="module")
-def bridge_proc(tmp_path_factory, fake_cdp):
-    """Boot the bridge as a subprocess pointed at the fake CDP fixture."""
-    log = tmp_path_factory.mktemp("logs") / "mcp.log"
-    env = {
-        **os.environ,
-        "CROSS_LLM_MCP_HTTP_PORT": str(_free_port()),
-        "CROSS_LLM_MCP_CDP_CHATGPT_PORT": str(fake_cdp["ws_port"]),  # placeholder
-        "CROSS_LLM_MCP_STREAMING_TIMEOUT_SECONDS": "5",
-    }
-    proc = subprocess.Popen(
-        [sys.executable, "-m", "cross_llm_mcp", "start"],
-        env=env,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-    )
-    # Wait for /health to return 200
-    port = int(env["CROSS_LLM_MCP_HTTP_PORT"])
-    for _ in range(50):
-        try:
-            r = requests.get(f"http://127.0.0.1:{port}/health", timeout=0.2)
-            if r.status_code == 200:
-                break
-        except Exception:
-            time.sleep(0.2)
-    else:
-        proc.kill()
-        pytest.fail("bridge did not start")
-    yield proc, port
-    proc.send_signal(signal.SIGINT)
-    proc.wait(timeout=5)
-
-
-def test_health_endpoint_returns_200(bridge_proc, fake_cdp):
-    _, port = bridge_proc
-    r = requests.get(f"http://127.0.0.1:{port}/health", timeout=1)
-    assert r.status_code == 200
-    body = r.json()
-    assert body["service_name"] == "cross-llm-mcp"
-    # The four-signal shape:
-    feed = body.get("feed") or {}
-    assert "entities_count" in feed
-    assert "errors_total" in feed
-    assert "cycles_total" in feed
-    assert "last_updated_timestamp" in feed
-
-
-def test_status_command_via_cli():
-    r = subprocess.run(
-        [sys.executable, "-m", "cross_llm_mcp", "status", "--json"],
-        capture_output=True, text=True,
-    )
-    # Without a running bridge, status exits non-zero; that's the contract.
-    assert r.returncode != 0 or "running" in r.stdout.lower() or "stopped" in r.stdout.lower()
-
-
-def test_version_command_prints():
-    r = subprocess.run(
-        [sys.executable, "-m", "cross_llm_mcp", "version"],
-        capture_output=True, text=True,
-    )
-    assert r.returncode == 0, r.stderr
-    assert "cross-llm-mcp 0.1.0" in r.stdout
-```
-
-- [ ] **Step 2: Run the test to verify it fails**
-
-`uv run pytest tests/integration/test_server_lifecycle.py -v`
-
-Expected: most tests FAIL because the bridge's startup flow isn't wired yet.
-
-- [ ] **Step 3: Write the implementation**
-
-`cross_llm_mcp/server.py`:
-
-```python
-from __future__ import annotations
-import asyncio
-from pathlib import Path
-
-from fastmcp import FastMCP
-from mcp_common.cli import MCPServerCLIFactory
-from mcp_common.health import register_http_health_route
-from mcp_common.server import BaseOneiricServerMixin, create_runtime_components
-
-from cross_llm_mcp import __version__
-from cross_llm_mcp.config import CrossLLMConfig, DEFAULT_PORT
-from cross_llm_mcp.peers.claude import ClaudeDesktopAdapter
-from cross_llm_mcp.peers.chatgpt import ChatGPTDesktopAdapter
-
-
-# ---------------------------------------------------------------------------
-# Module-level FastMCP singleton. _tools.py imports `mcp` to bind @mcp.tool()
-# decorators against this instance. CrossLLMServer captures the same
-# singleton in __init__ so get_app() can return its http_app.
-#
-# IMPORTANT: server.py imports _tools BELOW the `mcp = FastMCP(...)` line
-# so that the side-effect import (registering tools) runs in the right
-# order. Do NOT move the import above the singleton.
-mcp = FastMCP("cross-llm-mcp")
-
-from cross_llm_mcp import _tools  # noqa: E402, F401
-# ---------------------------------------------------------------------------
-
-
-class CrossLLMServer(BaseOneiricServerMixin):
-    """Bridge server. Bound to the module-level `mcp` singleton.
-
-    Implements the canonical mcp-common Pattern 1 lifecycle so the
-    factory's `start_handler` closure can `await server.startup()` then
-    `uvicorn.run(server.get_app(), host=..., port=...)`.
-    """
-
-    def __init__(self, config: CrossLLMConfig) -> None:
-        self.config = config
-        self.mcp = mcp  # capture the module-level singleton
-        self.runtime = create_runtime_components("cross-llm-mcp", ".oneiric_cache")
-        self.claude = ClaudeDesktopAdapter(self.config, self.runtime)
-        self.chatgpt = ChatGPTDesktopAdapter(self.config, self.runtime)
-
-    async def startup(self) -> None:
-        await self.runtime.initialize()
-        self.config.validate_for_start()  # raises ValueError on misconfig
-        await self.claude.attach()
-        await self.chatgpt.attach()
-        _tools.set_clients(claude=self.claude, chatgpt=self.chatgpt)
-        # /health envelope wired (Task 11 itself):
-        register_http_health_route(
-            self.mcp,
-            service_name="cross-llm-mcp",
-            version=__version__,
-            extra_components=[],  # per-peer detail is in get_peer_health()
-        )
-        await self._create_startup_snapshot(custom_components={
-            "claude":  self.claude.status().__dict__,
-            "chatgpt": self.chatgpt.status().__dict__,
-        })
-
-    async def shutdown(self) -> None:
-        await self._create_shutdown_snapshot()
-        await self.claude.detach()
-        await self.chatgpt.detach()
-        await self.runtime.cleanup()
-
-    def get_app(self):
-        return self.mcp.http_app
-
-
-def _build_factory():
-    return MCPServerCLIFactory.create_server_cli(
-        server_class=CrossLLMServer,
-        config_class=CrossLLMConfig,
-        name="cross-llm-mcp",
-        description="Bridge MCP for Claude Desktop and ChatGPT Desktop via Chrome DevTools Protocol.",
-    )
-
-
-# CLI Factory singleton used by __main__.py. Module-import side effects:
-# registers tools via _tools, binds the FastMCP app on import.
-_factory = _build_factory()
-app = _factory.create_app()
-```
-
-`cross_llm_mcp/__main__.py` — replace the Typer stub from Task 1 with a one-liner:
-
-```python
-from __future__ import annotations
-from cross_llm_mcp.server import app
-
-
-def main() -> None:
-    app()
-
-
-if __name__ == "__main__":
-    main()
-```
-
-Add helper script `tests/integration/_fake_cdp_server.py` (≈ 80 lines: tiny `aiohttp`-free HTTP server using stdlib `http.server`, plus a `websockets` WS server; both serve the minimal subset `/json` + `Runtime.evaluate echo`). Implementer writes this file from scratch in this task; it stays in `tests/integration/`.
-
-- [ ] **Step 4: Run the test to verify it passes**
-
-`uv run pytest tests/integration/test_server_lifecycle.py -v`
-
-Expected: PASS for the 3 tests above. The fixture's port constants and the fake CDP server's behavior need to match what the tests expect — adjust to taste.
-
-- [ ] **Step 5: Commit**
-
-```bash
-cd /Users/les/Projects/cross-llm-mcp
-git add cross_llm_mcp/server.py cross_llm_mcp/__main__.py tests/integration/_fake_cdp_server.py tests/integration/test_server_lifecycle.py
-git commit -m "feat(server): CrossLLMServer class with mcp singleton + lifecycle + /health envelope"
-```
-
----
 
 ### Task 12: Selectors-schema stability guard test (v1.0.0 requirement)
 
