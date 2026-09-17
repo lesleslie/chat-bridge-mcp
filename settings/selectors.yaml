@@ -1,0 +1,26 @@
+# per-OS CSS selectors for Claude Desktop and ChatGPT Desktop.
+# Best-guess defaults for v1.0.0 (operator must validate and overwrite
+# on first install; schema-stability guard test pins the four-key
+# contract — see Task 12).
+macos:
+  claude:
+    input_box:               "[contenteditable='true'][data-testid='composer-input']"
+    send_button:             "button[aria-label='Send']"
+    response_container:      "[data-message-author='assistant']"
+    stop_generating_indicator: "button[aria-label='Stop response']"
+  chatgpt:
+    input_box:               "textarea#prompt-textarea"
+    send_button:             "button[data-testid='send-button']"
+    response_container:      "[data-message-author-role='assistant']"
+    stop_generating_indicator: "button[aria-label='Stop generating']"
+windows:
+  claude:
+    input_box:               "[contenteditable='true'][data-testid='composer-input']"
+    send_button:             "button[aria-label='Send']"
+    response_container:      "[data-message-author='assistant']"
+    stop_generating_indicator: "button[aria-label='Stop response']"
+  chatgpt:
+    input_box:               "textarea#prompt-textarea"
+    send_button:             "button[data-testid='send-button']"
+    response_container:      "[data-message-author-role='assistant']"
+    stop_generating_indicator: "button[aria-label='Stop generating']"
