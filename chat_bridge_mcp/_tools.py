@@ -1,0 +1,116 @@
+"""MCP tool registry for chat-bridge-mcp.
+
+The module-level `mcp` singleton lives in `chat_bridge_mcp.server`. The
+``@mcp.tool()`` decorators bind against that singleton when
+:meth:`register_tools` is invoked from server.py, AFTER ``mcp =
+FastMCP(...)`` has executed. This ordering avoids the circular import.
+
+Task 11b adds two tool stubs (ask_chatgpt, get_peer_health) so the named
+integration tests in spec §9.1 can exercise the lifecycle + four-signal
+shape end-to-end. The full tool surface (forward_chatgpt, ask_claude,
+etc.) is filled in by a later task; the stubs return the minimum the
+tests assert on.
+"""
+from __future__ import annotations
+
+import json
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from chat_bridge_mcp.peers.base import DesktopPeerAdapter
+
+
+_clients: dict[str, DesktopPeerAdapter] = {}
+_tools_registered: bool = False
+
+
+def set_clients(**clients: DesktopPeerAdapter) -> None:
+    """Bind peer adapters at startup. Per-peer kwargs: claude=, chatgpt=."""
+    _clients.update(clients)
+
+
+def get_client(name: str) -> DesktopPeerAdapter:
+    """Look up the adapter for `name` ('claude' | 'chatgpt').
+
+    Raises KeyError when the named client has not been bound yet (the
+    bridge was not started up — the caller should treat that as a fatal
+    wiring error).
+    """
+    return _clients[name]
+
+
+def get_clients() -> dict[str, DesktopPeerAdapter]:
+    """Snapshot of the bound peer-adapter registry (for diagnostics)."""
+    return dict(_clients)
+
+
+def _reset() -> None:
+    """Test-only: clear the registry."""
+    _clients.clear()
+
+
+def _render_error(exc: BaseException, default_peer: str | None = None) -> str:
+    """Render a BridgeError as its chat-surface string (imported lazily
+    to avoid a circular import at module load time).
+
+    ``default_peer`` is the peer name to inject when the exception is
+    a PeerNotAttachedError that did not carry a peer attribute (e.g.
+    raised by the CDPSession wrapper when the WebSocket disconnects
+    before the adapter can decorate it).
+    """
+    from chat_bridge_mcp.exceptions import BridgeError, PeerNotAttachedError
+    from chat_bridge_mcp.server import _tool_error_string
+
+    if isinstance(exc, BridgeError):
+        if isinstance(exc, PeerNotAttachedError) and not exc.peer and default_peer:
+            exc.peer = default_peer
+        return _tool_error_string(exc)
+    return "internal error; see logs"
+
+
+def register_tools() -> None:
+    """Bind @mcp.tool() decorators against the singleton.
+
+    Idempotent: subsequent calls are no-ops. Called from server.py after
+    `mcp = FastMCP(...)` so the FastMCP instance is fully constructed
+    before tool registration.
+    """
+    global _tools_registered
+    if _tools_registered:
+        return
+    # Late import: server.mcp must exist before we reference it.
+    from chat_bridge_mcp.server import mcp
+
+    @mcp.tool()  # type: ignore[untyped-decorator]
+    async def ask_chatgpt(prompt: str) -> str:
+        """Send `prompt` to ChatGPT Desktop and return the plaintext reply."""
+        try:
+            client = get_client("chatgpt")
+        except KeyError:
+            from chat_bridge_mcp.exceptions import PeerNotAttachedError
+
+            return _render_error(
+                PeerNotAttachedError("chatgpt", peer="chatgpt"),
+                default_peer="chatgpt",
+            )
+        try:
+            reply = await client.send(prompt)
+        except BaseException as exc:  # noqa: BLE001 (chat surface always returns)
+            return _render_error(exc, default_peer="chatgpt")
+        return reply.text
+
+    @mcp.tool()  # type: ignore[untyped-decorator]
+    async def get_peer_health(peer: str) -> str:
+        """Return the four-signal health envelope for `peer` as JSON."""
+        try:
+            client = get_client(peer)
+        except KeyError:
+            from chat_bridge_mcp.exceptions import PeerNotAttachedError
+
+            return _render_error(
+                PeerNotAttachedError(peer, peer=peer), default_peer=peer
+            )
+        health = await client.health()
+        return json.dumps(health.__dict__, default=str)
+
+    _tools_registered = True
