@@ -49,13 +49,33 @@ def _free_port() -> int:
 
 
 @pytest.fixture
-def fake_cdp(tmp_path_factory: pytest.TempPathFactory) -> dict[str, object]:
+def capture_file(tmp_path: Path) -> Path:
+    """Temp file path for the fake CDP capture; pre-touched so the subprocess
+    can append to it. Always pre-touched; the fake_cdp fixture wires the
+    CHAT_BRIDGE_MCP_FAKE_CDP_CAPTURE_FILE env var to it. Tests that don't
+    care about capture just ignore the file.
+    """
+    path = tmp_path / "cdp_capture.jsonl"
+    path.write_text("")
+    return path
+
+
+@pytest.fixture
+def fake_cdp(
+    tmp_path_factory: pytest.TempPathFactory,
+    capture_file: Path,
+) -> dict[str, object]:
     """Boot tests/integration/_fake_cdp_server.py as a subprocess.
 
     It writes its bound ports to <tmp>/fake_cdp_ports.json which
-    bridge_proc reads. Yields ``{"ports_file": Path, "proc": Popen}``
-    so individual tests can interact with the fake CDP subprocess
-    (e.g. terminate it to simulate WS drop).
+    bridge_proc reads. Yields ``{"ports_file": Path, "proc": Popen,
+    "capture_file": Path}`` so individual tests can interact with the
+    fake CDP subprocess (e.g. terminate it to simulate WS drop) and
+    read captured Runtime.evaluate expressions.
+
+    The capture_file fixture is REQUESTED (always) so every test that
+    uses fake_cdp gets a fresh capture file. Tests that don't care
+    about capture simply ignore the ``capture_file`` field.
 
     Function-scoped (NOT module-scoped) so that destructive tests
     like test_send_after_websocket_drop_raises_PeerNotAttachedError
@@ -64,9 +84,14 @@ def fake_cdp(tmp_path_factory: pytest.TempPathFactory) -> dict[str, object]:
     every subsequent test's bridge startup.
     """
     ports_file = tmp_path_factory.mktemp("fake") / "ports.json"
+    capture_path = Path(capture_file)
     proc = subprocess.Popen(
         [sys.executable, "-m", "tests.integration._fake_cdp_server"],
-        env={**os.environ, "CHAT_BRIDGE_MCP_FAKE_CDP_PORTS_FILE": str(ports_file)},
+        env={
+            **os.environ,
+            "CHAT_BRIDGE_MCP_FAKE_CDP_PORTS_FILE": str(ports_file),
+            "CHAT_BRIDGE_MCP_FAKE_CDP_CAPTURE_FILE": str(capture_path),
+        },
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
     )
@@ -82,7 +107,7 @@ def fake_cdp(tmp_path_factory: pytest.TempPathFactory) -> dict[str, object]:
             f"fake CDP fixture did not write ports file in 30s; stderr={stderr[:500]!r}"
         )
     try:
-        yield {"ports_file": ports_file, "proc": proc}
+        yield {"ports_file": ports_file, "proc": proc, "capture_file": capture_path}
     finally:
         proc.terminate()
         try:
@@ -494,3 +519,79 @@ def test_version_command_prints() -> None:
     assert r.returncode == 0, r.stderr
     assert "chat-bridge-mcp" in r.stdout
     assert ":" in r.stdout or r.stdout.strip() == "0.1.0"
+
+
+
+# ---------------------------------------------------------------------------
+# forward_chatgpt end-to-end (T17)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_forward_chatgpt_wrapped_text_reaches_chatgpt_adapter(
+    bridge_proc: dict[str, object],
+    fake_cdp: dict[str, object],
+) -> None:
+    """T17 end-to-end: forward_chatgpt wraps source_reply in the nonce
+    frame, and the WRAPPED text is what reaches the chatgpt adapter.
+
+    Strategy: the fake CDP subprocess JSON-appends every Runtime.evaluate
+    expression (CHAT_BRIDGE_MCP_FAKE_CDP_CAPTURE_FILE). The chatgpt adapter
+    inlines the prompt as a JSON-escaped string in the JS source. The
+    assertion scans the capture for at least one expression containing
+    BOTH the relay-frame markers (``<<nonce=...>>``) AND the original
+    ``source_reply`` substring.
+    """
+    import re
+
+    capture_file_path = fake_cdp["capture_file"]  # type: ignore[assignment]
+    assert capture_file_path is not None
+
+    port = int(bridge_proc["port"])  # type: ignore[arg-type]
+    source_reply = "test reply"
+    source_peer = "claude"
+    async with httpx.AsyncClient(base_url=f"http://127.0.0.1:{port}") as client:
+        resp = await client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "forward_chatgpt",
+                    "arguments": {
+                        "source_peer": source_peer,
+                        "source_reply": source_reply,
+                        "ask_for_opinion": True,
+                    },
+                },
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+
+    assert "result" in body or "error" in body
+
+    entries = [
+        json.loads(line)
+        for line in Path(str(capture_file_path)).read_text().splitlines()
+        if line.strip()
+    ]
+    assert entries, "fake_cdp captured no Runtime.evaluate expressions"
+
+    matched = [
+        e for e in entries
+        if "<<nonce=" in e["expression"] and source_reply in e["expression"]
+    ]
+    assert matched, (
+        "forward_chatgpt did not inject the guardrail-wrapped text; "
+        f"captured={[e['expression'][:200] for e in entries[-5:]]}"
+    )
+
+    for entry in matched:
+        nonces = re.findall(r"<<nonce=([^>]+)>>", entry["expression"])
+        assert len(nonces) >= 2
+        assert nonces[0] == nonces[1]
+
+    assert any(source_peer in e["expression"] for e in matched)

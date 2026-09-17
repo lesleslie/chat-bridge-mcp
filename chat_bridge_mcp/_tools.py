@@ -118,6 +118,42 @@ def register_tools() -> None:
         return reply.text
 
     @mcp.tool()  # type: ignore[untyped-decorator]
+    async def forward_chatgpt(
+        source_peer: str, source_reply: str, ask_for_opinion: bool = True
+    ) -> str:
+        """Wrap source_reply in the guardrail nonce template and inject
+        it into ChatGPT Desktop. See spec section 5.1.b: the prior output
+        from ``source_peer`` is wrapped in the strict-isolation framing
+        (section 10a.2) so ChatGPT treats it as data, not instructions.
+        Returns the chatgpt adapter's plaintext reply, or the pinned
+        chat-surface error string on failure.
+        """
+        from chat_bridge_mcp import guardrail
+
+        try:
+            client = get_client("chatgpt")
+        except KeyError:
+            from chat_bridge_mcp.exceptions import PeerNotAttachedError
+
+            return _render_error(
+                PeerNotAttachedError("chatgpt", peer="chatgpt"),
+                default_peer="chatgpt",
+            )
+        try:
+            wrapped = guardrail.wrap(
+                source_reply,
+                source_peer=source_peer,
+                ask_for_opinion=ask_for_opinion,
+            )
+        except BaseException as exc:  # noqa: BLE001 (chat surface always returns)
+            return _render_error(exc, default_peer="chatgpt")
+        try:
+            reply = await client.send(wrapped)
+        except BaseException as exc:  # noqa: BLE001 (chat surface always returns)
+            return _render_error(exc, default_peer="chatgpt")
+        return reply.text
+
+    @mcp.tool()  # type: ignore[untyped-decorator]
     async def get_peer_health(peer: str) -> str:
         """Return the four-signal health envelope for `peer` as JSON."""
         try:
@@ -130,5 +166,28 @@ def register_tools() -> None:
             )
         health = await client.health()
         return json.dumps(health.__dict__, default=str)
+
+
+    @mcp.tool()  # type: ignore[untyped-decorator]
+    async def list_peers() -> str:
+        """Return the operator-facing roster of bound peers as a JSON array."""
+        try:
+            records: list[dict[str, object]] = []
+            for name, adapter in get_clients().items():
+                health = await adapter.health()
+                records.append(
+                    {
+                        "name": health.name,
+                        "attached": health.attached,
+                        "cycles_total": health.cycles_total,
+                        "errors_total": health.errors_total,
+                        "last_updated_timestamp": health.last_updated_timestamp,
+                        "last_call_succeeded": health.last_call_succeeded,
+                        "entities_count": health.entities_count,
+                    }
+                )
+            return json.dumps(records, default=str)
+        except BaseException as exc:  # noqa: BLE001
+            return _render_error(exc)
 
     _tools_registered = True

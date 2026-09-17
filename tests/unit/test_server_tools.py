@@ -21,6 +21,8 @@ without naming the OS. If the implementation is later updated to include
 """
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from chat_bridge_mcp import _tools
@@ -131,6 +133,97 @@ def test_render_error_falls_back_to_internal_for_non_bridge_error() -> None:
 
 
 # ---------------------------------------------------------------------------
+# list_peers tool pinning (T19)
+# ---------------------------------------------------------------------------
+
+
+class _FakePeerForListPeers:
+    """Minimal peer stub that satisfies DesktopPeerAdapter's `.health()` contract.
+
+    `list_peers` reads only the `name` attribute and awaits `.health()`,
+    which must return something with the same attribute shape as the real
+    ``PeerHealth`` dataclass (so the implementation's ``health.name`` /
+    ``health.cycles_total`` / ... accesses work).
+    """
+
+    def __init__(self, name: str, attached: bool = True) -> None:
+        self.name = name
+        self._attached = attached
+
+    async def health(self) -> "PeerHealth":  # noqa: F821
+        from chat_bridge_mcp.peers.base import PeerHealth
+
+        return PeerHealth(
+            name=self.name,
+            attached=self._attached,
+            cdp_port=19229,
+            page_id=None,
+            last_call_succeeded=True,
+            last_call_error=None,
+            total_calls=0,
+            errors_total=0,
+            cycles_total=0,
+            entities_count=1 if self._attached else 0,
+            last_updated_timestamp="2026-09-17T00:00:00+00:00",
+        )
+
+
+@pytest.mark.asyncio
+async def test_list_peers_returns_array_of_records_with_six_fields() -> None:
+    """`list_peers` is the operator-facing roster: it returns a JSON array,
+    one record per bound peer, with the seven operator-visible fields pinned
+    in T19's spec.
+    """
+    _tools._reset()
+    _tools.set_clients(
+        chatgpt=_FakePeerForListPeers("chatgpt"),  # type: ignore[arg-type]
+        claude=_FakePeerForListPeers("claude", attached=False),  # type: ignore[arg-type]
+    )
+    try:
+        # Invoke the registered FastMCP tool by name. This exercises the same
+        # decorator body the MCP transport would call.
+        from chat_bridge_mcp.server import mcp
+
+        tool = await mcp.get_tool("list_peers")
+        text = await tool.fn()  # type: ignore[misc]
+        records = json.loads(text)
+        assert isinstance(records, list)
+        assert {r["name"] for r in records} == {"chatgpt", "claude"}
+        for record in records:
+            assert set(record.keys()) == {
+                "name",
+                "attached",
+                "cycles_total",
+                "errors_total",
+                "last_updated_timestamp",
+                "last_call_succeeded",
+                "entities_count",
+            }
+        chatgpt = next(r for r in records if r["name"] == "chatgpt")
+        claude = next(r for r in records if r["name"] == "claude")
+        assert chatgpt["attached"] is True
+        assert chatgpt["entities_count"] == 1
+        assert claude["attached"] is False
+        assert claude["entities_count"] == 0
+    finally:
+        _tools._reset()
+
+
+@pytest.mark.asyncio
+async def test_list_peers_handles_empty_registry() -> None:
+    """An empty registry returns an empty JSON array (not an error)."""
+    _tools._reset()
+    try:
+        from chat_bridge_mcp.server import mcp
+
+        tool = await mcp.get_tool("list_peers")
+        text = await tool.fn()  # type: ignore[misc]
+        assert json.loads(text) == []
+    finally:
+        _tools._reset()
+
+
+# ---------------------------------------------------------------------------
 # ask_claude tool pinning (T16)
 # ---------------------------------------------------------------------------
 
@@ -177,3 +270,118 @@ def test_ask_claude_returns_claude_chat_surface_when_not_attached() -> None:
     finally:
         _tools._reset()
     assert result == "claude peer is not attached. Run `chat-bridge-mcp restart`."
+
+
+# ---------------------------------------------------------------------------
+# forward_chatgpt tool pinning (T17)
+# ---------------------------------------------------------------------------
+
+
+class _FakeChatGPTForForward:
+    """Minimal chatgpt stub satisfying DesktopPeerAdapter.send() contract.
+
+    Records the prompt passed to ``send`` so callers can assert on what
+    reached the chatgpt adapter.
+    """
+
+    def __init__(self, reply_text: str = "fake-reply-marker") -> None:
+        self._reply_text = reply_text
+        self.sent: list[str] = []
+
+    @property
+    def name(self) -> str:
+        return "chatgpt"
+
+    async def send(self, prompt: str, **_kwargs: object) -> object:
+        from datetime import UTC, datetime
+
+        from chat_bridge_mcp.peers.base import PeerReply
+
+        self.sent.append(prompt)
+        now = datetime.now(UTC)
+        return PeerReply(
+            text=self._reply_text,
+            model_used="fake-model",
+            duration_ms=1,
+            started_at=now,
+            finished_at=now,
+            peer="chatgpt",
+            char_count=len(self._reply_text),
+        )
+
+
+def test_forward_chatgpt_tool_is_registered() -> None:
+    """forward_chatgpt must be registered (T17 acceptance criterion)."""
+    import asyncio
+
+    from chat_bridge_mcp.server import mcp
+
+    tool_names = {t.name for t in asyncio.run(mcp.list_tools())}
+    assert "forward_chatgpt" in tool_names, (
+        f"forward_chatgpt not registered; tools present: {sorted(tool_names)}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_forward_chatgpt_returns_guardrail_chat_surface_for_empty_source_reply() -> None:
+    """Empty source_reply -> guardrail.wrap raises GuardrailFailure -> chat surface."""
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("forward_chatgpt")
+    fake = _FakeChatGPTForForward()
+    _tools.set_clients(chatgpt=fake)  # type: ignore[arg-type]
+    try:
+        result = await tool.fn(  # type: ignore[misc]
+            source_peer="claude", source_reply=""
+        )
+    finally:
+        _tools._reset()
+    assert result == "Internal: prompt rejected by guardrail. Report as a bug."
+    assert fake.sent == [], (
+        f"forward_chatgpt injected an empty source_reply into chatgpt; sent={fake.sent!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_forward_chatgpt_returns_chatgpt_not_attached_chat_surface() -> None:
+    """No chatgpt client bound -> PeerNotAttachedError chat surface."""
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("forward_chatgpt")
+    _tools._reset()
+    try:
+        result = await tool.fn(  # type: ignore[misc]
+            source_peer="claude", source_reply="a real reply"
+        )
+    finally:
+        _tools._reset()
+    assert result == "chatgpt peer is not attached. Run `chat-bridge-mcp restart`."
+
+
+@pytest.mark.asyncio
+async def test_forward_chatgpt_wraps_source_reply_in_nonce_frame() -> None:
+    """Happy path: forward_chatgpt wraps via guardrail, sends wrapped text."""
+    import re
+
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("forward_chatgpt")
+    fake = _FakeChatGPTForForward()
+    _tools.set_clients(chatgpt=fake)  # type: ignore[arg-type]
+    try:
+        result = await tool.fn(  # type: ignore[misc]
+            source_peer="claude",
+            source_reply="the quick brown fox",
+            ask_for_opinion=False,
+        )
+    finally:
+        _tools._reset()
+    assert result == "fake-reply-marker"
+    assert len(fake.sent) == 1
+    wrapped = fake.sent[0]
+    nonces = re.findall(r"<<nonce=([^>]+)>>", wrapped)
+    assert len(nonces) == 2
+    assert nonces[0] == nonces[1]
+    assert "the quick brown fox" in wrapped
+    assert "log for context" in wrapped
+    assert "claude" in wrapped
