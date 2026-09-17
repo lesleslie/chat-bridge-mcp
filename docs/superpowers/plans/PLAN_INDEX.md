@@ -4,14 +4,14 @@ role: canonical
 date: 2026-09-16
 last_reviewed: 2026-09-16
 superseded_by: null
-topic: cross-llm-mcp
+topic: chat-bridge-mcp
 ---
 
 # Plan Index
 
 **Date:** 2026-09-16
 **Last reviewed:** 2026-09-16
-**Purpose:** Navigation map for cross-llm-mcp planning documents. Edit by hand until a regenerator exists.
+**Purpose:** Navigation map for chat-bridge-mcp planning documents. Edit by hand until a regenerator exists.
 
 ## Status Legend
 
@@ -25,18 +25,18 @@ topic: cross-llm-mcp
 
 | Plan | Date | Status | Role | Spec | Notes |
 |---|---|---|---|---|---|
-| [2026-09-16-cross-llm-mcp-impl.md](./2026-09-16-cross-llm-mcp-impl.md) | 2026-09-16 | active | implementation | [spec](../specs/2026-09-16-cross-llm-mcp-design.md) | 16 tasks; bridges Claude Desktop ↔ ChatGPT Desktop on port 3057 via CDP |
+| [2026-09-16-chat-bridge-mcp-impl.md](./2026-09-16-chat-bridge-mcp-impl.md) | 2026-09-16 | active | implementation | [spec](../specs/2026-09-16-chat-bridge-mcp-design.md) | 16 tasks; bridges Claude Desktop ↔ ChatGPT Desktop on port 3057 via CDP |
 
 ## Specs
 
 | Spec | Date | Status | Topic |
 |---|---|---|---|
-| [../specs/2026-09-16-cross-llm-mcp-design.md](../specs/2026-09-16-cross-llm-mcp-design.md) | 2026-09-16 | complete | cross-llm-mcp design |
+| [../specs/2026-09-16-chat-bridge-mcp-design.md](../specs/2026-09-16-chat-bridge-mcp-design.md) | 2026-09-16 | complete | chat-bridge-mcp design |
 
 ## Review Entry Points
 
 - Use this file as the first stop before reviewing plan work.
-- Source plan for cross-llm-mcp is the 2026-09-16 spec; the implementation plan argues from it.
+- Source plan for chat-bridge-mcp is the 2026-09-16 spec; the implementation plan argues from it.
 
 ## Maintenance Rules
 
