@@ -414,6 +414,45 @@ async def test_peers_health_round_trip(bridge_proc: dict[str, object]) -> None:
 
 
 @pytest.mark.asyncio
+async def test_list_peers_returns_both_peers(bridge_proc: dict[str, object]) -> None:
+    """list_peers (T19) is the operator-facing roster. Both bound peers
+    must appear in the JSON array, each with the seven pinned fields.
+    """
+    port = int(bridge_proc["port"])  # type: ignore[arg-type]
+    async with httpx.AsyncClient(base_url=f"http://127.0.0.1:{port}") as client:
+        r = await client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {"name": "list_peers", "arguments": {}},
+            },
+            timeout=5,
+        )
+    body = r.json()
+    text = body["result"]["content"][0]["text"]
+    records = json.loads(text)
+    assert isinstance(records, list)
+    names = {r["name"] for r in records}
+    assert names == {"chatgpt", "claude"}
+    for record in records:
+        assert set(record.keys()) == {
+            "name",
+            "attached",
+            "cycles_total",
+            "errors_total",
+            "last_updated_timestamp",
+            "last_call_succeeded",
+            "entities_count",
+        }
+        # Both peers attach at startup, so attached must be True and
+        # entities_count must be 1 — the four-signal wiring contract.
+        assert record["attached"] is True
+        assert record["entities_count"] == 1
+
+
+@pytest.mark.asyncio
 async def test_out_of_order_response_raises_CDPProtocolError() -> None:
     """Pure unit test (no bridge needed) — verifies CDPSession.send
     skips out-of-order responses (id mismatch) and only completes on
