@@ -1,0 +1,12 @@
+{
+  "name": "chat-bridge-mcp-fixture",
+  "version": "1.0.0",
+  "description": "Headless Electron fixture simulating ChatGPT/Claude Desktop for chat-bridge-mcp e2e tests.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron . --remote-debugging-port=9230"
+  },
+  "devDependencies": {
+    "electron": "^30.0.0"
+  }
+}

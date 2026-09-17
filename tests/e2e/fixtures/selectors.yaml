@@ -1,0 +1,18 @@
+# per-OS CSS selectors for the headless Electron fixture.
+#
+# NOTE: Platform key is "darwin" (matches platform.system() return value),
+# NOT "macos" — see spec §10a.1. The shipped chat-bridge-mcp
+# settings/selectors.yaml uses "darwin"; this fixture mirrors that
+# convention so chat_bridge_mcp.selectors.load_selectors resolves
+# identically in operator and fixture paths.
+darwin:
+  claude:
+    input_box:               "textarea"
+    send_button:             "button"
+    response_container:      "[data-message-author-role='assistant']"
+    stop_generating_indicator: null
+  chatgpt:
+    input_box:               "textarea#prompt-textarea"
+    send_button:             "button[data-testid='send-button']"
+    response_container:      "[data-message-author-role='assistant']"
+    stop_generating_indicator: null
