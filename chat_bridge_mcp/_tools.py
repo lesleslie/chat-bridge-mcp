@@ -154,6 +154,43 @@ def register_tools() -> None:
         return reply.text
 
     @mcp.tool()  # type: ignore[untyped-decorator]
+    async def forward_claude(
+        source_peer: str, source_reply: str, ask_for_opinion: bool = True
+    ) -> str:
+        """Wrap source_reply in the guardrail nonce template and inject
+        it into Claude Desktop. Symmetric to ``forward_chatgpt``; see
+        spec section 5.1.b. The prior output from ``source_peer`` is
+        wrapped in the strict-isolation framing (section 10a.2) so Claude
+        treats it as data, not instructions. Returns the claude
+        adapter's plaintext reply, or the pinned chat-surface error
+        string on failure.
+        """
+        from chat_bridge_mcp import guardrail
+
+        try:
+            client = get_client("claude")
+        except KeyError:
+            from chat_bridge_mcp.exceptions import PeerNotAttachedError
+
+            return _render_error(
+                PeerNotAttachedError("claude", peer="claude"),
+                default_peer="claude",
+            )
+        try:
+            wrapped = guardrail.wrap(
+                source_reply,
+                source_peer=source_peer,
+                ask_for_opinion=ask_for_opinion,
+            )
+        except BaseException as exc:  # noqa: BLE001 (chat surface always returns)
+            return _render_error(exc, default_peer="claude")
+        try:
+            reply = await client.send(wrapped)
+        except BaseException as exc:  # noqa: BLE001 (chat surface always returns)
+            return _render_error(exc, default_peer="claude")
+        return reply.text
+
+    @mcp.tool()  # type: ignore[untyped-decorator]
     async def get_peer_health(peer: str) -> str:
         """Return the four-signal health envelope for `peer` as JSON."""
         try:
