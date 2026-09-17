@@ -2,7 +2,13 @@
 # Best-guess defaults for v1.0.0 (operator must validate and overwrite
 # on first install; schema-stability guard test pins the four-key
 # contract — see Task 12).
-macos:
+#
+# IMPORTANT: YAML keys are platform.system().lower() values, NOT
+# marketing names. macOS uses "darwin" (kernel name); Windows uses
+# "windows"; Linux would be "linux" (not yet supported). This matches
+# the selector loaders's os_name = platform.system().lower() lookup.
+# T4 fixup commit corrects the spec's "macos:" key to "darwin:".
+darwin:
   claude:
     input_box:               "[contenteditable='true'][data-testid='composer-input']"
     send_button:             "button[aria-label='Send']"
