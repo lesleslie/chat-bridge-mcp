@@ -100,6 +100,24 @@ def register_tools() -> None:
         return reply.text
 
     @mcp.tool()  # type: ignore[untyped-decorator]
+    async def ask_claude(prompt: str) -> str:
+        """Send `prompt` to Claude Desktop and return the plaintext reply."""
+        try:
+            client = get_client("claude")
+        except KeyError:
+            from chat_bridge_mcp.exceptions import PeerNotAttachedError
+
+            return _render_error(
+                PeerNotAttachedError("claude", peer="claude"),
+                default_peer="claude",
+            )
+        try:
+            reply = await client.send(prompt)
+        except BaseException as exc:  # noqa: BLE001 (chat surface always returns)
+            return _render_error(exc, default_peer="claude")
+        return reply.text
+
+    @mcp.tool()  # type: ignore[untyped-decorator]
     async def get_peer_health(peer: str) -> str:
         """Return the four-signal health envelope for `peer` as JSON."""
         try:

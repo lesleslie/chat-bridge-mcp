@@ -128,3 +128,52 @@ def test_render_error_falls_back_to_internal_for_non_bridge_error() -> None:
     message; they fall back to the generic internal-error string."""
     rendered = _tools._render_error(ValueError("boom"))
     assert rendered == "internal error; see logs"
+
+
+# ---------------------------------------------------------------------------
+# ask_claude tool pinning (T16)
+# ---------------------------------------------------------------------------
+
+
+def test_ask_claude_tool_is_registered() -> None:
+    """The ask_claude tool must be registered alongside ask_chatgpt and
+    get_peer_health (T16: add ask_claude MCP tool). Pinned so future
+    regressions that drop the tool from `register_tools()` surface as a
+    unit-test failure rather than a downstream integration gap.
+    """
+    import asyncio
+
+    from chat_bridge_mcp.server import mcp
+
+    tool_names = {t.name for t in asyncio.run(mcp.list_tools())}
+    assert "ask_claude" in tool_names, (
+        f"ask_claude not registered; tools present: {sorted(tool_names)}"
+    )
+    assert "ask_chatgpt" in tool_names
+    assert "get_peer_health" in tool_names
+
+
+def test_ask_claude_returns_claude_chat_surface_when_not_attached() -> None:
+    """When the claude peer has not been bound, ask_claude must return
+    the same chat-surface string the canonical PeerNotAttachedError
+    mapper emits for the claude peer — pinning the v1.0.0 operator-visible
+    copy per spec §10a.3.
+    """
+    import asyncio
+
+    from chat_bridge_mcp.server import mcp
+
+    tools = {t.name: t for t in asyncio.run(mcp.list_tools())}
+    assert "ask_claude" in tools, (
+        "ask_claude not registered; chat-surface string cannot be pinned"
+    )
+    ask_claude_fn = tools["ask_claude"].fn
+    # Clear the clients registry so get_client("claude") raises KeyError,
+    # which routes through the same chat-surface path that ask_chatgpt
+    # exercises in test_render_error_injects_default_peer_when_missing.
+    _tools._reset()
+    try:
+        result = asyncio.run(ask_claude_fn("hello"))
+    finally:
+        _tools._reset()
+    assert result == "claude peer is not attached. Run `chat-bridge-mcp restart`."

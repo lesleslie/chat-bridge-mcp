@@ -162,6 +162,27 @@ async def _ask_chatgpt_via_http(http_port: int, prompt: str, *, timeout_s: float
         return body["result"]["content"][0]["text"]
 
 
+async def _ask_claude_via_http(http_port: int, prompt: str, *, timeout_s: float = 30.0) -> str:
+    """HTTP client for the ask_claude tool (T16 mirror of _ask_chatgpt_via_http)."""
+    async with httpx.AsyncClient(base_url=f"http://127.0.0.1:{http_port}") as client:
+        resp = await client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "ask_claude",
+                    "arguments": {"prompt": prompt},
+                },
+            },
+            timeout=timeout_s,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        return body["result"]["content"][0]["text"]
+
+
 # ---------------------------------------------------------------------------
 # Named tests referenced by spec §9.1
 # ---------------------------------------------------------------------------
@@ -329,6 +350,18 @@ async def test_ask_chatgpt_returns_plaintext_reply(bridge_proc: dict[str, object
     text = await _ask_chatgpt_via_http(port, "Reply with the word 'pong'.")
     # Fake CDP returns a fixed marker for innerText extraction; we assert
     # the tool body returns *something* plaintext-shaped, not a JSON error.
+    assert text
+    assert "not attached" not in text.lower()
+
+
+@pytest.mark.asyncio
+async def test_ask_claude_returns_plaintext_reply(bridge_proc: dict[str, object]) -> None:
+    """T16 mirror of test_ask_chatgpt_returns_plaintext_reply — verifies
+    the ask_claude tool round-trips through the bridge's /mcp transport,
+    returning a plaintext reply (not a chat-surface error string).
+    """
+    port = int(bridge_proc["port"])  # type: ignore[arg-type]
+    text = await _ask_claude_via_http(port, "Reply with the word 'pong'.")
     assert text
     assert "not attached" not in text.lower()
 
