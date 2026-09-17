@@ -385,3 +385,118 @@ async def test_forward_chatgpt_wraps_source_reply_in_nonce_frame() -> None:
     assert "the quick brown fox" in wrapped
     assert "log for context" in wrapped
     assert "claude" in wrapped
+
+
+# ---------------------------------------------------------------------------
+# forward_claude tool pinning (T18)
+# ---------------------------------------------------------------------------
+
+
+class _FakeClaudeForForward:
+    """Minimal claude stub satisfying DesktopPeerAdapter.send() contract.
+
+    Records the prompt passed to ``send`` so callers can assert on what
+    reached the claude adapter.
+    """
+
+    def __init__(self, reply_text: str = "fake-reply-marker") -> None:
+        self._reply_text = reply_text
+        self.sent: list[str] = []
+
+    @property
+    def name(self) -> str:
+        return "claude"
+
+    async def send(self, prompt: str, **_kwargs: object) -> object:
+        from datetime import UTC, datetime
+
+        from chat_bridge_mcp.peers.base import PeerReply
+
+        self.sent.append(prompt)
+        now = datetime.now(UTC)
+        return PeerReply(
+            text=self._reply_text,
+            model_used="fake-model",
+            duration_ms=1,
+            started_at=now,
+            finished_at=now,
+            peer="claude",
+            char_count=len(self._reply_text),
+        )
+
+
+def test_forward_claude_tool_is_registered() -> None:
+    """forward_claude must be registered (T18 acceptance criterion)."""
+    import asyncio
+
+    from chat_bridge_mcp.server import mcp
+
+    tool_names = {t.name for t in asyncio.run(mcp.list_tools())}
+    assert "forward_claude" in tool_names, (
+        f"forward_claude not registered; tools present: {sorted(tool_names)}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_forward_claude_returns_guardrail_chat_surface_for_empty_source_reply() -> None:
+    """Empty source_reply -> guardrail.wrap raises GuardrailFailure -> chat surface."""
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("forward_claude")
+    fake = _FakeClaudeForForward()
+    _tools.set_clients(claude=fake)  # type: ignore[arg-type]
+    try:
+        result = await tool.fn(  # type: ignore[misc]
+            source_peer="chatgpt", source_reply=""
+        )
+    finally:
+        _tools._reset()
+    assert result == "Internal: prompt rejected by guardrail. Report as a bug."
+    assert fake.sent == [], (
+        f"forward_claude injected an empty source_reply into claude; sent={fake.sent!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_forward_claude_returns_claude_not_attached_chat_surface() -> None:
+    """No claude client bound -> PeerNotAttachedError chat surface."""
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("forward_claude")
+    _tools._reset()
+    try:
+        result = await tool.fn(  # type: ignore[misc]
+            source_peer="chatgpt", source_reply="a real reply"
+        )
+    finally:
+        _tools._reset()
+    assert result == "claude peer is not attached. Run `chat-bridge-mcp restart`."
+
+
+@pytest.mark.asyncio
+async def test_forward_claude_wraps_source_reply_in_nonce_frame() -> None:
+    """Happy path: forward_claude wraps via guardrail, sends wrapped text."""
+    import re
+
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("forward_claude")
+    fake = _FakeClaudeForForward()
+    _tools.set_clients(claude=fake)  # type: ignore[arg-type]
+    try:
+        result = await tool.fn(  # type: ignore[misc]
+            source_peer="chatgpt",
+            source_reply="the quick brown fox",
+            ask_for_opinion=False,
+        )
+    finally:
+        _tools._reset()
+    assert result == "fake-reply-marker"
+    assert len(fake.sent) == 1
+    wrapped = fake.sent[0]
+    nonces = re.findall(r"<<nonce=([^>]+)>>", wrapped)
+    assert len(nonces) == 2
+    assert nonces[0] == nonces[1]
+    assert "the quick brown fox" in wrapped
+    assert "log for context" in wrapped
+    assert "chatgpt" in wrapped

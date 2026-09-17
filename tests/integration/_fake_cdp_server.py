@@ -4,6 +4,13 @@ Used by tests/integration/test_server_lifecycle.py to boot the bridge
 against a real subprocess instead of real Claude/ChatGPT Desktop.
 Writes the bound ports to <tmp>/cdp_ports.json for the bridge_proc
 fixture to read.
+
+Optional capture (CHAT_BRIDGE_MCP_FAKE_CDP_CAPTURE_FILE): when set, every
+Runtime.evaluate expression the bridge sends is JSON-appended to that file
+as ``{"ts": <unix_seconds>, "expression": <str>}``. The integration test
+for forward_chatgpt reads the capture file to assert that the
+guardrail-wrapped text (with ``<<nonce=...>>`` markers) actually reached
+the chatgpt adapter - not just an unwrapped prompt.
 """
 from __future__ import annotations
 
@@ -12,6 +19,7 @@ import json
 import os
 import sys
 import tempfile
+import time
 from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -67,6 +75,32 @@ def _eval_handler(expr: str) -> object:
 
 
 EVAL_HANDLER: Callable[[str], object] = _eval_handler
+
+
+# Optional capture file: every Runtime.evaluate expression the bridge sends
+# is JSON-appended so the integration test for forward_chatgpt can assert
+# the guardrail-wrapped text (with <<nonce=...>> markers) actually reached
+# the chatgpt adapter. None = no capture (the default).
+CAPTURE_FILE = os.environ.get("CHAT_BRIDGE_MCP_FAKE_CDP_CAPTURE_FILE")
+
+
+def _record_eval(expr: str) -> None:
+    """Append a Runtime.evaluate expression to the capture file (if set).
+
+    Best-effort: never raises. The capture file is the integration test's
+    source of truth for "what did the bridge send into ChatGPT", so a write
+    failure here would silently mask a regression; we surface it on stderr
+    so pytest can pick it up via the subprocess pipe.
+    """
+    if CAPTURE_FILE is None:
+        return
+    try:
+        with open(CAPTURE_FILE, "a", encoding="utf-8") as f:
+            f.write(
+                json.dumps({"ts": time.time(), "expression": expr}) + "\n"
+            )
+    except OSError as exc:  # pragma: no cover (subprocess stderr only)
+        print(f"[fake-cdp] capture write failed: {exc!r}", flush=True)
 
 
 # Bound port discovery (the bridge reads this file)
@@ -128,6 +162,7 @@ async def _ws_handler(ws: object) -> None:
                 await ws.send(json.dumps({"id": msg["id"], "result": {}}))  # type: ignore[attr-defined]
                 continue
             expr = msg.get("params", {}).get("expression", "")
+            _record_eval(expr)
             value = EVAL_HANDLER(expr)
             await ws.send(  # type: ignore[attr-defined]
                 json.dumps(

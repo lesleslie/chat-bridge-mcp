@@ -595,3 +595,76 @@ async def test_forward_chatgpt_wrapped_text_reaches_chatgpt_adapter(
         assert nonces[0] == nonces[1]
 
     assert any(source_peer in e["expression"] for e in matched)
+
+
+# ---------------------------------------------------------------------------
+# forward_claude end-to-end (T18)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_forward_claude_wrapped_text_reaches_claude_adapter(
+    bridge_proc: dict[str, object],
+    fake_cdp: dict[str, object],
+) -> None:
+    """T18 end-to-end: forward_claude wraps source_reply in the nonce
+    frame, and the WRAPPED text is what reaches the claude adapter.
+
+    Mirrors test_forward_chatgpt_wrapped_text_reaches_chatgpt_adapter
+    (T17); the only differences are the tool name ("forward_claude")
+    and the source_peer argument ("chatgpt" — claude is the receiver,
+    so the prior output came from chatgpt).
+    """
+    import re
+
+    capture_file_path = fake_cdp["capture_file"]  # type: ignore[assignment]
+    assert capture_file_path is not None
+
+    port = int(bridge_proc["port"])  # type: ignore[arg-type]
+    source_reply = "test reply"
+    source_peer = "chatgpt"
+    async with httpx.AsyncClient(base_url=f"http://127.0.0.1:{port}") as client:
+        resp = await client.post(
+            "/mcp",
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "forward_claude",
+                    "arguments": {
+                        "source_peer": source_peer,
+                        "source_reply": source_reply,
+                        "ask_for_opinion": True,
+                    },
+                },
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+
+    assert "result" in body or "error" in body
+
+    entries = [
+        json.loads(line)
+        for line in Path(str(capture_file_path)).read_text().splitlines()
+        if line.strip()
+    ]
+    assert entries, "fake_cdp captured no Runtime.evaluate expressions"
+
+    matched = [
+        e for e in entries
+        if "<<nonce=" in e["expression"] and source_reply in e["expression"]
+    ]
+    assert matched, (
+        "forward_claude did not inject the guardrail-wrapped text; "
+        f"captured={[e['expression'][:200] for e in entries[-5:]]}"
+    )
+
+    for entry in matched:
+        nonces = re.findall(r"<<nonce=([^>]+)>>", entry["expression"])
+        assert len(nonces) >= 2
+        assert nonces[0] == nonces[1]
+
+    assert any(source_peer in e["expression"] for e in matched)
