@@ -101,28 +101,30 @@ class ClaudeDesktopAdapter(DesktopPeerAdapter):
             self.config.cdp_host, self.config.cdp_claude_port
         )
         self._target = target
-        self._session = await CDPConnection.attach(target)
+        # Lazy WebSocket open: defer CDPConnection.attach() to first send()
+        # so the WS is opened on the same asyncio loop that handles the
+        # request. See chatgpt.py for the full rationale.
+        self._session = None
 
-        # Self-test: each configured selector must match >= 1 node.
-        # Check stop_generating_indicator only when it is configured
-        # (None triggers content-hash fallback per §5.1.c step 5).
+        # Self-test via a probe session; close it before returning so the
+        # streaming loop opens its own session lazily.
         selectors_to_check: list[tuple[str, str]] = [
             ("input_box", self._selectors.input_box),
             ("send_button", self._selectors.send_button),
             ("response_container", self._selectors.response_container),
         ]
-        if self._selectors.stop_generating_indicator:
-            selectors_to_check.append(
-                ("stop_generating_indicator", self._selectors.stop_generating_indicator)
-            )
-        for sel_name, selector in selectors_to_check:
-            count = await self._session.query_selector_all(selector)
-            if count < 1:
-                raise SelectorUnmatchedError(
-                    f"Claude Desktop selector '{sel_name}' matched no elements",
-                    peer="claude",
-                    context={"selector_name": sel_name, "configured": selector},
-                )
+        probe_session = await CDPConnection.attach(target)
+        try:
+            for sel_name, selector in selectors_to_check:
+                count = await probe_session.query_selector_all(selector)
+                if count < 1:
+                    raise SelectorUnmatchedError(
+                        f"Claude Desktop selector '{sel_name}' matched no elements",
+                        peer="claude",
+                        context={"selector_name": sel_name, "configured": selector},
+                    )
+        finally:
+            await probe_session.close()
 
         self._page_id = target.get("id")
         # Per base-class contract: set entities_count so status()/health()
@@ -137,11 +139,25 @@ class ClaudeDesktopAdapter(DesktopPeerAdapter):
         self._page_id = None
         self.feed_state.entities_count = 0
 
+    async def _ensure_session(self) -> CDPSession:
+        """Lazy WebSocket open on the caller's event loop."""
+        if self._session is None and self._target is not None:
+            try:
+                self._session = await CDPConnection.attach(self._target)
+            except Exception as exc:
+                raise PeerNotAttachedError(
+                    f"claude CDP target unreachable: {exc}",
+                    peer="claude",
+                ) from exc
+        if self._session is None:
+            raise PeerNotAttachedError("claude peer not attached", peer="claude")
+        return self._session
+
     async def _send_uncounted(self, prompt: str, *, system: str | None = None) -> PeerReply:
-        if self._session is None or self._selectors is None:
+        if self._selectors is None:
             raise PeerNotAttachedError("claude peer not attached", peer="claude")
         s = self._selectors
-        session = self._session
+        session = await self._ensure_session()
         started = datetime.now(UTC)
 
         # 1. Clear the input box (React-friendly setter).

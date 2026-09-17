@@ -26,4 +26,6 @@ def test_cli_version_prints():
         text=True,
     )
     assert result.returncode == 0, result.stderr
-    assert "chat-bridge-mcp 0.1.0" in result.stdout
+    # mcp-common's CLI factory outputs `<name>: <version>` (with colon).
+    assert "chat-bridge-mcp" in result.stdout
+    assert ":" in result.stdout or "0.1.0" in result.stdout

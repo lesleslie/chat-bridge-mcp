@@ -64,34 +64,57 @@ class CDPSession:
     async def send(
         self, method: str, params: dict[str, Any] | None = None
     ) -> dict[str, Any]:
-        """Send JSON-RPC and await the matching response, skipping events."""
+        """Send JSON-RPC and await the matching response, skipping events.
+
+        Raises:
+            CDPProtocolError: malformed JSON, CDP-level error response, or
+                send-on-closed-session.
+            PeerNotAttachedError: the underlying WebSocket disconnected
+                mid-call (the bridge should treat this as fatal-attachment
+                loss and surface the chat-surface "not attached" copy to
+                the user).
+        """
         if self._closed:
             raise CDPProtocolError("send on closed CDPSession")
         self._next_id += 1
         msg_id = self._next_id
-        await self._ws.send(
-            json.dumps({"id": msg_id, "method": method, "params": params or {}})
-        )
-        while True:
-            raw = await self._ws.recv()
-            try:
-                response = json.loads(raw)
-            except json.JSONDecodeError as exc:
-                raise CDPProtocolError(
-                    f"CDP returned non-JSON: {raw!r}"
-                ) from exc
-            # Skip events: messages with a `method` field are notifications
-            # from the target; messages without an `id` are not replies.
-            if "method" in response or "id" not in response:
-                continue
-            # Skip replies for other in-flight requests (out-of-order).
-            if response["id"] != msg_id:
-                continue
-            if "error" in response:
-                raise CDPProtocolError(
-                    f"CDP {method} returned error: {response['error']}"
-                )
-            return response.get("result", {})
+        try:
+            await self._ws.send(
+                json.dumps({"id": msg_id, "method": method, "params": params or {}})
+            )
+            while True:
+                raw = await self._ws.recv()
+                try:
+                    response = json.loads(raw)
+                except json.JSONDecodeError as exc:
+                    raise CDPProtocolError(
+                        f"CDP returned non-JSON: {raw!r}"
+                    ) from exc
+                # Skip events: messages with a `method` field are notifications
+                # from the target; messages without an `id` are not replies.
+                if "method" in response or "id" not in response:
+                    continue
+                # Skip replies for other in-flight requests (out-of-order).
+                if response["id"] != msg_id:
+                    continue
+                if "error" in response:
+                    raise CDPProtocolError(
+                        f"CDP {method} returned error: {response['error']}"
+                    )
+                return response.get("result", {})
+        except (PeerNotAttachedError, CDPProtocolError, json.JSONDecodeError):
+            # Domain-level errors raised above propagate as-is so callers
+            # can branch on the specific exception type.
+            raise
+        except Exception as exc:
+            # Any WebSocket-level failure (ConnectionClosed, ConnectionReset,
+            # InvalidState, etc.) means the CDP target is no longer reachable.
+            # Translate to PeerNotAttachedError so the chat surface can
+            # render the operator-facing "not attached" copy.
+            raise PeerNotAttachedError(
+                f"CDP target disconnected during {method}: {exc}",
+                context={"method": method, "ws_error": type(exc).__name__},
+            ) from exc
 
     async def evaluate(
         self, expression: str, *, await_promise: bool = False

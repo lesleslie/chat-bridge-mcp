@@ -34,8 +34,10 @@ def patched_cdp(monkeypatch):
     list to manage.
 
     Expected call sequence on the success path:
-      - 4 attach self-tests (input_box, send_button, response_container,
-        stop_generating_indicator), each count >= 1
+      - 3 attach self-tests (input_box, send_button, response_container),
+        each count >= 1. The stop_generating_indicator is OPTIONAL per
+        spec §5.1.c step 5 — Task 11b removed it from the attach self-test
+        so the fallback path is exercised when no indicator matches.
       - 3 send set-up evaluates (clear, focus, set) returning None
       - 3 polls for stop indicator absent (each returns 0)
       - 1 extract response_container last message innerText -> "hello chatgpt"
@@ -44,7 +46,7 @@ def patched_cdp(monkeypatch):
     fake_target = {"id": "PAGE-2", "type": "page", "webSocketDebuggerUrl": "ws://x/y"}
     session = AsyncMock()
     session.evaluate = AsyncMock(side_effect=[
-        1, 1, 1, 1,             # 4 attach self-tests (via query_selector_all)
+        1, 1, 1,                # 3 attach self-tests (via query_selector_all)
         None, None, None,       # clear, focus, set (direct evaluates)
         0, 0, 0,                # 3 polls for stop indicator absent (via qsa)
         "hello chatgpt",        # extract response_container last message
