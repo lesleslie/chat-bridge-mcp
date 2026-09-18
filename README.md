@@ -1,14 +1,23 @@
 # chat-bridge-mcp
 
-> **Status:** `draft` — v1.0.0 release candidate pending review (see [spec](docs/superpowers/specs/2026-09-16-chat-bridge-design.md) §13 / Plan-to-spec tracking).
+> **Status:** `0.1.0` — early development; the 6-tool MCP surface and base wire-up are
+> in place but several HIGH/MEDIUM review findings are still open. No stable
+> release scheduled yet. See [CHANGELOG.md](CHANGELOG.md) for the v0.1.0
+> inventory and `docs/superpowers/specs/2026-09-16-chat-bridge-design.md` for
+> the design contract.
 
-A standalone MCP server in the [`www-mcp-servers`](https://github.com/lesleslie/www-mcp-servers) fleet.
+A standalone Bodai MCP server in the [Bodai registry](https://github.com/lesleslie/mahavishnu/blob/main/BODAI_REPO_REGISTRY.md).
 Lets one Claude Desktop and one ChatGPT Desktop, running on the same machine,
 converse with each other through the bridge by driving each app's currently-active
 chat via Chrome DevTools Protocol.
 
-**v1.0.0 ships a 6-tool MCP surface** (`ask_chatgpt`, `ask_claude`, `forward_chatgpt`,
-`forward_claude`, `list_peers`, `get_peer_health`) over Streamable HTTP on port 3057.
+**6-tool MCP surface** (`ask_chatgpt`, `ask_claude`, `forward_chatgpt`,
+`forward_claude`, `list_peers`, `get_peer_health`) over Streamable HTTP on port 3057,
+plus the 4 Bodai baseline tools (`discover_tools`, `get_liveness`, `get_readiness`,
+`health_check_all`).
+
+**OS support:** macOS (darwin) and Windows only. Linux is not supported — the
+selector YAML has no `linux:` block.
 
 ## Quick start
 
@@ -16,9 +25,9 @@ chat via Chrome DevTools Protocol.
 # Install
 git clone https://github.com/lesleslie/chat-bridge-mcp
 cd chat-bridge-mcp
-uv sync --group dev
+uv sync --extra dev
 
-# Pin --remote-debugging-port in each desktop's shortcut
+# Pin --remote-debugging-port in each desktop's launcher
 #   macOS:  edit /Applications/Claude.app and /Applications/ChatGPT.app launchers
 #            to include --remote-debugging-port=9229 / --remote-debugging-port=9230
 #   Win:    Properties > Target = "...Claude.exe" --remote-debugging-port=9229
@@ -27,7 +36,7 @@ uv sync --group dev
 # Verify each is the currently-active chat you expect.
 
 # Start the bridge
-uv run python -m chat_bridge_mcp start
+uv run chat-bridge-mcp start
 ```
 
 ## First-install manual smoke-test (mandatory)
@@ -36,18 +45,49 @@ The e2e tier cannot exercise the React-controlled-input event trick the bridge
 relies on. Verify the bridge is functional against your actual Claude Desktop
 and ChatGPT Desktop by running these steps. **If any step fails, do not deploy.**
 
-[Full smoke-test protocol here — see spec §8.4 for the canonical sequence.]
+1. **Bridge startup.** From one terminal: `uv run chat-bridge-mcp start`. From
+   another: `curl -s http://127.0.0.1:3057/health | jq`. Expect 200 with at least
+   one peer in `extra_components` (entities_count >= 1). If both peers failed
+   to attach, /health returns 503 with entities_count == 0 for both — see
+   [Concurrency](#concurrency--known-v1-limitations) for the per-peer
+   collision contract.
+2. **`ask_chatgpt("Reply with the word 'pong'.")`** — expect "pong" within
+   `streaming_timeout_seconds` (default 180s). The bridge types the prompt
+   into ChatGPT Desktop's currently-active chat, presses Enter, and polls
+   until streaming finishes.
+3. **`forward_chatgpt("claude", "What is 2+2?", ask_for_opinion=True)`** —
+   inspect the bridge's stdout/log for a line containing `<<nonce=...>>`
+   twice (paired markers from the guardrail template). ChatGPT's reply will
+   quote the wrapped text but treat it as data, not instructions.
+4. **`ask_claude(...)` and `forward_claude(...)`** — symmetric against
+   Claude Desktop.
+5. **`list_peers()` and `get_peer_health("chatgpt")`** — both should return
+   JSON with the four-signal `HealthFeedState`:
+   - `entities_count >= 1` (peer is attached)
+   - `cycles_total >= 1` (at least one successful round trip)
+   - `errors_total == 0` (no failures)
+   - `last_updated_timestamp` (ISO-8601 string, refreshes on each call)
 
-1. `ask_chatgpt("Reply with the word 'pong'.")` — expect "pong" within 180s.
-2. `forward_chatgpt("claude", "What is 2+2?", ask_for_opinion=True)` —
-   inspect log line for nonce-marked framing.
-3. `ask_claude(...)` and `forward_claude(...)` — symmetric.
-4. `list_peers()` and `get_peer_health("chatgpt")` — verify counters.
-5. `/health` — verify `entities_count >= 1`, `errors_total == 0`.
+If any step fails, do not deploy — open an issue with the bridge subprocess
+stderr and the failing step's chat-surface error string.
+
+## Concurrency — known v1 limitations
+
+Per spec §5.6, the bridge does NOT serialize concurrent calls to the same peer.
+Two concurrent `ask_chatgpt` calls produce **prompt-drop data corruption**: both
+calls end up returning the second call's reply because they share the input
+box and the second Enter overrides the first. The integration test
+`test_concurrent_calls_pin_drop` pins this contract by name. If you need
+per-call isolation, sequence calls explicitly.
+
+Per spec §5.6, the WebSocket leak under concurrent first-time callers is
+documented as a v1 limitation in `peers/base.py`. The leak is cosmetic on
+subprocess shutdown (the OS reaps the unclosed file descriptor); the v0.2.0
+fix is per-call WS lifecycle (open in `_send_uncounted`, close in `finally`).
 
 ## Quality & CI
 
-This server uses [Crackerjack](https://github.com/lesleskie/crackerjack) for
+This server uses [Crackerjack](https://github.com/lesleslie/crackerjack) for
 repo-wide quality gates. Run `uv run crackerjack run` for full validation.
 
 ### Test tiers
