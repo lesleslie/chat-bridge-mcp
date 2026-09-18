@@ -1,8 +1,8 @@
 ---
-status: active
+status: complete
 role: implementation
 date: 2026-09-16
-last_reviewed: 2026-09-16
+last_reviewed: 2026-09-17
 superseded_by: null
 blocks_on:
   - docs/superpowers/specs/2026-09-16-chat-bridge-mcp-design.md
