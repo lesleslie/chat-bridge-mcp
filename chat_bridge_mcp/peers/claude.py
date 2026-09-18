@@ -95,7 +95,9 @@ class ClaudeDesktopAdapter(DesktopPeerAdapter):
         # Local import: selectors loader imports config, avoid cycle.
         from chat_bridge_mcp.selectors import load_selectors
 
-        selectors_by_peer = load_selectors(self.config.selectors_file)
+        selectors_by_peer = await asyncio.to_thread(
+            load_selectors, self.config.selectors_file
+        )
         self._selectors = selectors_by_peer["claude"]
         target = await CDPConnection.find_top_level_target(
             self.config.cdp_host, self.config.cdp_claude_port
