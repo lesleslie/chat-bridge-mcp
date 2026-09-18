@@ -95,7 +95,7 @@ def register_tools() -> None:
             )
         try:
             reply = await client.send(prompt)
-        except BaseException as exc:  # noqa: BLE001 (chat surface always returns)
+        except Exception as exc:  # noqa: BLE001 (chat surface always returns; CancelledError propagates correctly)
             return _render_error(exc, default_peer="chatgpt")
         return reply.text
 
@@ -113,7 +113,7 @@ def register_tools() -> None:
             )
         try:
             reply = await client.send(prompt)
-        except BaseException as exc:  # noqa: BLE001 (chat surface always returns)
+        except Exception as exc:  # noqa: BLE001 (chat surface always returns; CancelledError propagates correctly)
             return _render_error(exc, default_peer="claude")
         return reply.text
 
@@ -145,11 +145,11 @@ def register_tools() -> None:
                 source_peer=source_peer,
                 ask_for_opinion=ask_for_opinion,
             )
-        except BaseException as exc:  # noqa: BLE001 (chat surface always returns)
+        except Exception as exc:  # noqa: BLE001 (chat surface always returns; CancelledError propagates correctly)
             return _render_error(exc, default_peer="chatgpt")
         try:
             reply = await client.send(wrapped)
-        except BaseException as exc:  # noqa: BLE001 (chat surface always returns)
+        except Exception as exc:  # noqa: BLE001 (chat surface always returns; CancelledError propagates correctly)
             return _render_error(exc, default_peer="chatgpt")
         return reply.text
 
@@ -182,11 +182,11 @@ def register_tools() -> None:
                 source_peer=source_peer,
                 ask_for_opinion=ask_for_opinion,
             )
-        except BaseException as exc:  # noqa: BLE001 (chat surface always returns)
+        except Exception as exc:  # noqa: BLE001 (chat surface always returns; CancelledError propagates correctly)
             return _render_error(exc, default_peer="claude")
         try:
             reply = await client.send(wrapped)
-        except BaseException as exc:  # noqa: BLE001 (chat surface always returns)
+        except Exception as exc:  # noqa: BLE001 (chat surface always returns; CancelledError propagates correctly)
             return _render_error(exc, default_peer="claude")
         return reply.text
 
@@ -224,7 +224,7 @@ def register_tools() -> None:
                     }
                 )
             return json.dumps(records, default=str)
-        except BaseException as exc:  # noqa: BLE001
+        except Exception as exc:  # noqa: BLE001
             return _render_error(exc)
 
     _tools_registered = True
