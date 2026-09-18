@@ -198,6 +198,7 @@ class ClaudeDesktopAdapter(DesktopPeerAdapter):
                 raise StreamingTimeoutError(
                     f"claude response did not complete within {timeout}s",
                     peer="claude",
+                    context={"timeout": timeout},
                 )
         else:
             last_hash: int | None = None
@@ -220,6 +221,7 @@ class ClaudeDesktopAdapter(DesktopPeerAdapter):
                 raise StreamingTimeoutError(
                     f"claude response did not stabilize within {timeout}s",
                     peer="claude",
+                    context={"timeout": timeout},
                 )
 
         # 5. Extract last assistant message innerText.

@@ -201,6 +201,7 @@ class ChatGPTDesktopAdapter(DesktopPeerAdapter):
                 raise StreamingTimeoutError(
                     f"chatgpt response did not complete within {timeout}s",
                     peer="chatgpt",
+                    context={"timeout": timeout},
                 )
         else:
             last_hash: int | None = None
@@ -223,6 +224,7 @@ class ChatGPTDesktopAdapter(DesktopPeerAdapter):
                 raise StreamingTimeoutError(
                     f"chatgpt response did not stabilize within {timeout}s",
                     peer="chatgpt",
+                    context={"timeout": timeout},
                 )
 
         # 5. Extract last assistant message innerText.
