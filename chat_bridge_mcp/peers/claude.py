@@ -142,15 +142,22 @@ class ClaudeDesktopAdapter(DesktopPeerAdapter):
         self.feed_state.entities_count = 0
 
     async def _ensure_session(self) -> CDPSession:
-        """Lazy WebSocket open on the caller's event loop."""
+        """Lazy WebSocket open on the caller's event loop.
+
+        Guarded by self._session_lock (double-check pattern) so two concurrent
+        first-time callers don't both open a fresh WS — preserves the spec §5.6
+        no-serialization rule on _send_uncounted.
+        """
         if self._session is None and self._target is not None:
-            try:
-                self._session = await CDPConnection.attach(self._target)
-            except Exception as exc:
-                raise PeerNotAttachedError(
-                    f"claude CDP target unreachable: {exc}",
-                    peer="claude",
-                ) from exc
+            async with self._session_lock:
+                if self._session is None and self._target is not None:
+                    try:
+                        self._session = await CDPConnection.attach(self._target)
+                    except Exception as exc:
+                        raise PeerNotAttachedError(
+                            f"claude CDP target unreachable: {exc}",
+                            peer="claude",
+                        ) from exc
         if self._session is None:
             raise PeerNotAttachedError("claude peer not attached", peer="claude")
         return self._session
