@@ -125,3 +125,38 @@ def test_peer_reply_dataclass_is_frozen():
     )
     with pytest.raises(Exception):  # FrozenInstanceError, AttributeError, etc.
         r.peer = "chatgpt"
+
+
+@pytest.mark.asyncio
+async def test_health_uses_feed_state_timestamp_when_no_last_call():
+    """health()'s ISO-timestamp fallback chain: when _last_call_at is None
+    but feed_state.last_updated_timestamp is set (cycles have run but no
+    successful call yet), the timestamp is derived from the feed state.
+    Covers peers/base.py:140-143.
+    """
+    p = FakePeer()
+    await p.attach()
+    # No successful send() -> _last_call_at stays None, but feed_state
+    # was touched (attach incremented cycles via... well, attach doesn't
+    # increment, but we can set it directly to mirror what send() would do).
+    p.feed_state.last_updated_timestamp = 1700000000.0
+    h = await p.health()
+    # ISO-8601 of 2023-11-14T22:13:20 UTC
+    assert h.last_updated_timestamp.startswith("2023-11-14")
+
+
+@pytest.mark.asyncio
+async def test_health_uses_now_when_both_last_call_and_feed_state_unset():
+    """health()'s final fallback: when both _last_call_at and
+    feed_state.last_updated_timestamp are None, use datetime.now(UTC).
+    Covers peers/base.py:144-145.
+    """
+    p = FakePeer()
+    await p.attach()
+    p._last_call_at = None
+    p.feed_state.last_updated_timestamp = None
+    h = await p.health()
+    # Should be a valid ISO-8601 timestamp; we just check it's a string
+    # and parses back to a recent datetime.
+    parsed = datetime.fromisoformat(h.last_updated_timestamp)
+    assert (datetime.now(UTC) - parsed).total_seconds() < 5

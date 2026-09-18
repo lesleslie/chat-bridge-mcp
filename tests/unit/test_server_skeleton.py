@@ -190,3 +190,42 @@ async def test_server_health_check_surfaces_peer_failure_as_error_dict() -> None
     by_name = {name: payload for name, payload in components}
     assert by_name["claude"].get("attached") is True
     assert by_name["chatgpt"] == {"error": "boom"}
+
+
+def test_tool_error_string_falls_back_for_unknown_bridge_error() -> None:
+    """An instance of BridgeError that isn't one of the known subclasses
+    (PeerNotAttachedError, SelectorMissingError, SelectorUnmatchedError,
+    StreamingTimeoutError, GuardrailFailure, CDPProtocolError) falls
+    through every isinstance check and hits the final `return "internal
+    error; see logs"` line. Covers server.py:80.
+    """
+    from chat_bridge_mcp.exceptions import BridgeError
+    from chat_bridge_mcp.server import _tool_error_string
+
+    assert _tool_error_string(BridgeError("unknown")) == "internal error; see logs"
+
+
+def test_register_tools_is_idempotent_after_first_call() -> None:
+    """The `if _tools_registered: return` guard at the top of register_tools
+    makes a second call a no-op so module reloads don't double-register
+    the @mcp.tool() decorators. Covers _tools.py:80.
+    """
+    import asyncio
+
+    from chat_bridge_mcp import _tools
+    from chat_bridge_mcp.server import mcp
+
+    # First, force the guard to be exercised: reset the flag, then call
+    # register_tools() (which runs the @mcp.tool() decorators and sets the
+    # flag). Capture the post-call tool count.
+    _tools._tools_registered = False
+    _tools.register_tools()
+    count_after_first = len(asyncio.run(mcp.list_tools()))
+    # Now register_tools() is a no-op (the guard fires). Calling it again
+    # must not register a duplicate set of tools.
+    _tools.register_tools()
+    count_after_second = len(asyncio.run(mcp.list_tools()))
+    assert count_after_first == count_after_second, (
+        f"register_tools() is not idempotent; tool count went "
+        f"{count_after_first} -> {count_after_second}"
+    )

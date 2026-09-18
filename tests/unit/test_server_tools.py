@@ -500,3 +500,406 @@ async def test_forward_claude_wraps_source_reply_in_nonce_frame() -> None:
     assert "the quick brown fox" in wrapped
     assert "log for context" in wrapped
     assert "chatgpt" in wrapped
+
+
+# ---------------------------------------------------------------------------
+# ask_chatgpt body coverage (_tools.py:91-107)
+# ---------------------------------------------------------------------------
+
+
+class _FakePeerForAsk:
+    """Peer stub satisfying DesktopPeerAdapter.send() for the ask_* tools.
+
+    Records every prompt passed to send() so tests can assert on the
+    system-prompt composition. If `raise_on_send` is set, send() raises
+    that exception instead of returning a PeerReply.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        *,
+        reply_text: str = "hello",
+        raise_on_send: Exception | None = None,
+    ) -> None:
+        self.name = name
+        self._reply_text = reply_text
+        self._raise_on_send = raise_on_send
+        self.sent_prompts: list[str] = []
+
+    async def send(self, prompt: str, **_kwargs: object) -> object:
+        from datetime import UTC, datetime
+
+        from chat_bridge_mcp.peers.base import PeerReply
+
+        self.sent_prompts.append(prompt)
+        if self._raise_on_send is not None:
+            raise self._raise_on_send
+        now = datetime.now(UTC)
+        return PeerReply(
+            text=self._reply_text,
+            model_used=None,
+            duration_ms=1,
+            started_at=now,
+            finished_at=now,
+            peer=self.name,
+            char_count=len(self._reply_text),
+        )
+
+
+@pytest.mark.asyncio
+async def test_ask_chatgpt_returns_reply_on_success() -> None:
+    """ask_chatgpt happy path: bound client returns a PeerReply, tool body
+    forwards reply.text. Covers _tools.py:91-107.
+    """
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("ask_chatgpt")
+    fake = _FakePeerForAsk("chatgpt", reply_text="pong")
+    _tools.set_clients(chatgpt=fake)  # type: ignore[arg-type]
+    try:
+        result = await tool.fn(question="hi")  # type: ignore[misc]
+    finally:
+        _tools._reset()
+    assert result == "pong"
+    assert fake.sent_prompts == ["hi"]
+
+
+@pytest.mark.asyncio
+async def test_ask_chatgpt_applies_system_prompt_when_provided() -> None:
+    """ask_chatgpt with `system=` prepends it as a system-level instruction
+    separated from the question by a blank line. Covers _tools.py:93.
+    """
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("ask_chatgpt")
+    fake = _FakePeerForAsk("chatgpt")
+    _tools.set_clients(chatgpt=fake)  # type: ignore[arg-type]
+    try:
+        await tool.fn(  # type: ignore[misc]
+            question="what is 2+2?", system="You are a calculator."
+        )
+    finally:
+        _tools._reset()
+    assert fake.sent_prompts == ["You are a calculator.\n\nwhat is 2+2?"]
+
+
+@pytest.mark.asyncio
+async def test_ask_chatgpt_returns_empty_question_validation_string() -> None:
+    """Empty/whitespace-only question -> "Empty question..." string without
+    touching the client. Covers _tools.py:91-92.
+    """
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("ask_chatgpt")
+    fake = _FakePeerForAsk("chatgpt")
+    _tools.set_clients(chatgpt=fake)  # type: ignore[arg-type]
+    try:
+        result = await tool.fn(question="   ")  # type: ignore[misc]
+    finally:
+        _tools._reset()
+    assert result == "Empty question. Provide non-empty text."
+    assert fake.sent_prompts == []
+
+
+@pytest.mark.asyncio
+async def test_ask_chatgpt_renders_not_attached_when_no_client() -> None:
+    """No chatgpt client bound -> PeerNotAttachedError chat surface.
+    Covers _tools.py:96-102.
+    """
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("ask_chatgpt")
+    _tools._reset()
+    try:
+        result = await tool.fn(question="hi")  # type: ignore[misc]
+    finally:
+        _tools._reset()
+    assert result == "chatgpt peer is not attached. Run `chat-bridge-mcp restart`."
+
+
+@pytest.mark.asyncio
+async def test_ask_chatgpt_renders_send_exception_as_chat_surface() -> None:
+    """client.send() raises a BridgeError -> tool body renders the
+    chat-surface string. Covers _tools.py:103-106.
+    """
+    from chat_bridge_mcp.exceptions import StreamingTimeoutError
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("ask_chatgpt")
+    fake = _FakePeerForAsk(
+        "chatgpt",
+        raise_on_send=StreamingTimeoutError(
+            "did not complete within 5s",
+            peer="chatgpt",
+            context={"timeout": 5},
+        ),
+    )
+    _tools.set_clients(chatgpt=fake)  # type: ignore[arg-type]
+    try:
+        result = await tool.fn(question="hi")  # type: ignore[misc]
+    finally:
+        _tools._reset()
+    assert result == "chatgpt response did not complete within 5s."
+
+
+# ---------------------------------------------------------------------------
+# ask_claude body coverage (_tools.py:110-132)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_ask_claude_returns_reply_on_success() -> None:
+    """ask_claude happy path. Covers _tools.py:110-132."""
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("ask_claude")
+    fake = _FakePeerForAsk("claude", reply_text="pong-claude")
+    _tools.set_clients(claude=fake)  # type: ignore[arg-type]
+    try:
+        result = await tool.fn(question="hi")  # type: ignore[misc]
+    finally:
+        _tools._reset()
+    assert result == "pong-claude"
+
+
+@pytest.mark.asyncio
+async def test_ask_claude_applies_system_prompt_when_provided() -> None:
+    """ask_claude with system= prepends the system prompt. Covers _tools.py:118."""
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("ask_claude")
+    fake = _FakePeerForAsk("claude")
+    _tools.set_clients(claude=fake)  # type: ignore[arg-type]
+    try:
+        await tool.fn(  # type: ignore[misc]
+            question="explain closures", system="You are a Python tutor."
+        )
+    finally:
+        _tools._reset()
+    assert fake.sent_prompts == ["You are a Python tutor.\n\nexplain closures"]
+
+
+@pytest.mark.asyncio
+async def test_ask_claude_returns_empty_question_validation_string() -> None:
+    """ask_claude empty-question guard. Covers _tools.py:116-117."""
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("ask_claude")
+    fake = _FakePeerForAsk("claude")
+    _tools.set_clients(claude=fake)  # type: ignore[arg-type]
+    try:
+        result = await tool.fn(question="")  # type: ignore[misc]
+    finally:
+        _tools._reset()
+    assert result == "Empty question. Provide non-empty text."
+    assert fake.sent_prompts == []
+
+
+@pytest.mark.asyncio
+async def test_ask_claude_renders_not_attached_when_no_client() -> None:
+    """ask_claude no-client -> PeerNotAttachedError chat surface.
+    Covers _tools.py:121-127.
+    """
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("ask_claude")
+    _tools._reset()
+    try:
+        result = await tool.fn(question="hi")  # type: ignore[misc]
+    finally:
+        _tools._reset()
+    assert result == "claude peer is not attached. Run `chat-bridge-mcp restart`."
+
+
+@pytest.mark.asyncio
+async def test_ask_claude_renders_send_exception_as_chat_surface() -> None:
+    """ask_claude send exception -> chat surface. Covers _tools.py:128-131."""
+    from chat_bridge_mcp.exceptions import StreamingTimeoutError
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("ask_claude")
+    fake = _FakePeerForAsk(
+        "claude",
+        raise_on_send=StreamingTimeoutError(
+            "did not complete within 5s",
+            peer="claude",
+            context={"timeout": 5},
+        ),
+    )
+    _tools.set_clients(claude=fake)  # type: ignore[arg-type]
+    try:
+        result = await tool.fn(question="hi")  # type: ignore[misc]
+    finally:
+        _tools._reset()
+    assert result == "claude response did not complete within 5s."
+
+
+# ---------------------------------------------------------------------------
+# forward_* send-error coverage (_tools.py:165-167, 202-204)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_forward_chatgpt_renders_chat_surface_when_send_raises() -> None:
+    """forward_chatgpt's client.send() raises -> chat-surface string.
+    Covers _tools.py:165-167.
+    """
+    from chat_bridge_mcp.exceptions import StreamingTimeoutError
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("forward_chatgpt")
+    fake = _FakePeerForAsk(
+        "chatgpt",
+        raise_on_send=StreamingTimeoutError(
+            "did not complete within 5s",
+            peer="chatgpt",
+            context={"timeout": 5},
+        ),
+    )
+    _tools.set_clients(chatgpt=fake)  # type: ignore[arg-type]
+    try:
+        result = await tool.fn(  # type: ignore[misc]
+            source_peer="claude",
+            source_reply="a real reply",
+        )
+    finally:
+        _tools._reset()
+    assert result == "chatgpt response did not complete within 5s."
+
+
+@pytest.mark.asyncio
+async def test_forward_claude_renders_chat_surface_when_send_raises() -> None:
+    """forward_claude's client.send() raises -> chat-surface string.
+    Covers _tools.py:202-204.
+    """
+    from chat_bridge_mcp.exceptions import StreamingTimeoutError
+    from chat_bridge_mcp.server import mcp
+
+    tool = await mcp.get_tool("forward_claude")
+    fake = _FakePeerForAsk(
+        "claude",
+        raise_on_send=StreamingTimeoutError(
+            "did not complete within 5s",
+            peer="claude",
+            context={"timeout": 5},
+        ),
+    )
+    _tools.set_clients(claude=fake)  # type: ignore[arg-type]
+    try:
+        result = await tool.fn(  # type: ignore[misc]
+            source_peer="chatgpt",
+            source_reply="a real reply",
+        )
+    finally:
+        _tools._reset()
+    assert result == "claude response did not complete within 5s."
+
+
+# ---------------------------------------------------------------------------
+# get_peer_health coverage (_tools.py:208-219)
+# ---------------------------------------------------------------------------
+
+
+class _FakePeerForHealth:
+    """Peer stub satisfying the DesktopPeerAdapter.health() contract."""
+
+    def __init__(self, name: str, health_payload: object) -> None:
+        self.name = name
+        self._payload = health_payload
+
+    async def health(self) -> object:
+        return self._payload
+
+
+@pytest.mark.asyncio
+async def test_get_peer_health_returns_envelope_as_json() -> None:
+    """get_peer_health JSON-serializes the four-signal PeerHealth envelope.
+    Covers _tools.py:208-219.
+    """
+    import json as _json
+
+    from chat_bridge_mcp.peers.base import PeerHealth
+    from chat_bridge_mcp.server import mcp
+
+    payload = PeerHealth(
+        name="chatgpt",
+        attached=True,
+        cdp_port=9230,
+        page_id="PAGE-1",
+        last_call_succeeded=True,
+        last_call_error=None,
+        total_calls=3,
+        errors_total=0,
+        cycles_total=3,
+        entities_count=1,
+        last_updated_timestamp="2026-09-18T00:00:00+00:00",
+    )
+    _tools.set_clients(  # type: ignore[arg-type]
+        chatgpt=_FakePeerForHealth("chatgpt", payload),
+    )
+    try:
+        tool = await mcp.get_tool("get_peer_health")
+        text = await tool.fn(peer="chatgpt")  # type: ignore[misc]
+    finally:
+        _tools._reset()
+    decoded = _json.loads(text)
+    assert decoded["name"] == "chatgpt"
+    assert decoded["attached"] is True
+    assert decoded["cycles_total"] == 3
+    assert decoded["last_updated_timestamp"].startswith("2026-09-18")
+
+
+@pytest.mark.asyncio
+async def test_get_peer_health_returns_chat_surface_when_no_client() -> None:
+    """get_peer_health with no bound client -> PeerNotAttachedError chat
+    surface. Covers _tools.py:210-217 (KeyError → render_error path).
+    """
+    from chat_bridge_mcp.server import mcp
+
+    _tools._reset()
+    try:
+        tool = await mcp.get_tool("get_peer_health")
+        result = await tool.fn(peer="chatgpt")  # type: ignore[misc]
+    finally:
+        _tools._reset()
+    assert result == "chatgpt peer is not attached. Run `chat-bridge-mcp restart`."
+
+
+# ---------------------------------------------------------------------------
+# list_peers partial failure (_tools.py:240-242)
+# ---------------------------------------------------------------------------
+
+
+class _FakePeerRaisingOnHealth:
+    """Peer stub whose .health() raises; used to exercise list_peers' except branch."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    async def health(self) -> object:
+        raise RuntimeError("peer unreachable")
+
+
+@pytest.mark.asyncio
+async def test_list_peers_handles_partial_health_failure() -> None:
+    """If one peer's .health() raises, list_peers must still return the
+    healthy peer's record and surface the failure as the generic
+    internal-error string. Covers _tools.py:240-242.
+    """
+    from chat_bridge_mcp.server import mcp
+
+    _tools._reset()
+    healthy = _FakePeerForListPeers("chatgpt")  # type: ignore[arg-type]
+    _tools.set_clients(  # type: ignore[arg-type]
+        chatgpt=healthy,
+        claude=_FakePeerRaisingOnHealth("claude"),  # type: ignore[arg-type]
+    )
+    try:
+        tool = await mcp.get_tool("list_peers")
+        text = await tool.fn()  # type: ignore[misc]
+    finally:
+        _tools._reset()
+    # The healthy peer's record surfaces; the failing one becomes the
+    # generic internal-error string per _render_error's fallback.
+    assert "internal error; see logs" in text

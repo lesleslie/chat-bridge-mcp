@@ -39,3 +39,28 @@ def test_load_selectors_missing_required_key_raises(tmp_path):
     yaml.write_text("darwin:\n  claude:\n    input_box: 'x'\n")  # missing send_button, response_container
     with pytest.raises(SelectorMissingError, match="missing"):
         load_selectors(yaml, os_name="darwin")
+
+
+def test_load_selectors_raises_when_file_missing(tmp_path):
+    """Selectors file path does not exist -> SelectorMissingError ("not found").
+    Covers selectors.py:33.
+    """
+    missing_path = tmp_path / "does-not-exist.yaml"
+    with pytest.raises(SelectorMissingError, match="selectors file not found"):
+        load_selectors(missing_path, os_name="darwin")
+
+
+def test_load_selectors_raises_when_peer_block_missing_or_not_map(tmp_path):
+    """OS block exists but the per-peer block is missing/not a mapping ->
+    SelectorMissingError. Covers selectors.py:52.
+    """
+    yaml = tmp_path / "selectors.yaml"
+    # darwin.claude exists, but darwin.chatgpt is a list (not a mapping).
+    yaml.write_text(
+        "darwin:\n"
+        "  claude:\n"
+        "    input_box: 'x'\n    send_button: 'y'\n    response_container: 'z'\n"
+        "  chatgpt: [not, a, map]\n"
+    )
+    with pytest.raises(SelectorMissingError, match=r"darwin\.chatgpt"):
+        load_selectors(yaml, os_name="darwin")
