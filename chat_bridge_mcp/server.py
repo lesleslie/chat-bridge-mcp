@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastmcp import FastMCP
+from mcp_common.bootstrap import bootstrap_baseline_tools
 from mcp_common.cli import MCPServerCLIFactory
 from mcp_common.health import register_http_health_route
 from mcp_common.server import BaseOneiricServerMixin, RuntimeComponents, create_runtime_components
@@ -38,6 +39,12 @@ from chat_bridge_mcp.peers.claude import ClaudeDesktopAdapter
 # ChatBridgeServer objects exist.
 mcp = FastMCP("chat-bridge-mcp")
 _tools.register_tools()
+
+# Bodai baseline tools (discover_tools, get_liveness, get_readiness,
+# health_check_all) — every Bodai MCP server exposes these so Claude Code's
+# picker can find them. Registered after the chat-bridge tools so list_tools()
+# returns the full 6 + 4 = 10 surface.
+bootstrap_baseline_tools(mcp)
 
 
 def _tool_error_string(exc: BridgeError) -> str:
