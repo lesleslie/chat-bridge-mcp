@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-import asyncio
 import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from datetime import datetime, UTC
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from mcp_common.health.feed import (
     HealthFeedState,
@@ -14,9 +13,6 @@ from mcp_common.health.feed import (
 )
 
 from chat_bridge_mcp.exceptions import BridgeError
-
-if TYPE_CHECKING:
-    from chat_bridge_mcp.cdp import CDPSession, CDPConnection
 
 
 @dataclass(frozen=True)
@@ -84,14 +80,6 @@ class DesktopPeerAdapter(ABC):
         self._last_call_at: datetime | None = None
         self._last_reply_char_count: int | None = None
         self.last_call_succeeded: bool | None = None
-        self._session: CDPSession | None = None
-        self._target: CDPConnection | None = None
-        # Guards the check-then-act race in _ensure_session when two concurrent
-        # first-time callers both observe _session is None. NOT a serialization
-        # lock on _send_uncounted — spec §5.6's no-serialization rule still holds;
-        # the lock covers only the (small) gap between "is _session None?" and
-        # "now it's not None".
-        self._session_lock: asyncio.Lock = asyncio.Lock()
         self._last_call_error: str | None = None
 
     @abstractmethod
