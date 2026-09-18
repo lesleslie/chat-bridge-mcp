@@ -82,8 +82,15 @@ def register_tools() -> None:
     from chat_bridge_mcp.server import mcp
 
     @mcp.tool()
-    async def ask_chatgpt(prompt: str) -> str:
-        """Send `prompt` to ChatGPT Desktop and return the plaintext reply."""
+    async def ask_chatgpt(question: str, system: str | None = None) -> str:
+        """Send `question` to ChatGPT Desktop and return the plaintext reply.
+
+        Per spec §5.1.a: empty question returns an error string; if `system` is
+        provided it's prepended as a system-level instruction. No guardrail — verbatim.
+        """
+        if not question.strip():
+            return "Empty question. Provide non-empty text."
+        text = f"{system}\n\n{question}" if system else question
         try:
             client = get_client("chatgpt")
         except KeyError:
@@ -94,14 +101,21 @@ def register_tools() -> None:
                 default_peer="chatgpt",
             )
         try:
-            reply = await client.send(prompt)
+            reply = await client.send(text)
         except Exception as exc:  # noqa: BLE001 (chat surface always returns; CancelledError propagates correctly)
             return _render_error(exc, default_peer="chatgpt")
         return reply.text
 
     @mcp.tool()
-    async def ask_claude(prompt: str) -> str:
-        """Send `prompt` to Claude Desktop and return the plaintext reply."""
+    async def ask_claude(question: str, system: str | None = None) -> str:
+        """Send `question` to Claude Desktop and return the plaintext reply.
+
+        Per spec §5.1.a: empty question returns an error string; if `system` is
+        provided it's prepended as a system-level instruction. No guardrail — verbatim.
+        """
+        if not question.strip():
+            return "Empty question. Provide non-empty text."
+        text = f"{system}\n\n{question}" if system else question
         try:
             client = get_client("claude")
         except KeyError:
@@ -112,7 +126,7 @@ def register_tools() -> None:
                 default_peer="claude",
             )
         try:
-            reply = await client.send(prompt)
+            reply = await client.send(text)
         except Exception as exc:  # noqa: BLE001 (chat surface always returns; CancelledError propagates correctly)
             return _render_error(exc, default_peer="claude")
         return reply.text

@@ -177,7 +177,7 @@ async def _ask_chatgpt_via_http(http_port: int, prompt: str, *, timeout_s: float
                 "method": "tools/call",
                 "params": {
                     "name": "ask_chatgpt",
-                    "arguments": {"prompt": prompt},
+                    "arguments": {"question": prompt},
                 },
             },
             timeout=timeout_s,
@@ -198,7 +198,7 @@ async def _ask_claude_via_http(http_port: int, prompt: str, *, timeout_s: float 
                 "method": "tools/call",
                 "params": {
                     "name": "ask_claude",
-                    "arguments": {"prompt": prompt},
+                    "arguments": {"question": prompt},
                 },
             },
             timeout=timeout_s,
@@ -303,7 +303,7 @@ def test_send_after_websocket_drop_raises_PeerNotAttachedError(
                     "jsonrpc": "2.0",
                     "id": 1,
                     "method": "tools/call",
-                    "params": {"name": "ask_chatgpt", "arguments": {"prompt": "hi"}},
+                    "params": {"name": "ask_chatgpt", "arguments": {"question": "hi"}},
                 },
                 timeout=10,
             )
@@ -353,7 +353,7 @@ async def test_concurrent_calls_pin_drop(bridge_proc: dict[str, object]) -> None
                     "jsonrpc": "2.0",
                     "id": 1,
                     "method": "tools/call",
-                    "params": {"name": "ask_chatgpt", "arguments": {"prompt": prompt}},
+                    "params": {"name": "ask_chatgpt", "arguments": {"question": prompt}},
                 },
                 timeout=10,
             )
