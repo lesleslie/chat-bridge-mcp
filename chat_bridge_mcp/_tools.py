@@ -81,7 +81,7 @@ def register_tools() -> None:
     # Late import: server.mcp must exist before we reference it.
     from chat_bridge_mcp.server import mcp
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     async def ask_chatgpt(prompt: str) -> str:
         """Send `prompt` to ChatGPT Desktop and return the plaintext reply."""
         try:
@@ -99,7 +99,7 @@ def register_tools() -> None:
             return _render_error(exc, default_peer="chatgpt")
         return reply.text
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     async def ask_claude(prompt: str) -> str:
         """Send `prompt` to Claude Desktop and return the plaintext reply."""
         try:
@@ -117,7 +117,7 @@ def register_tools() -> None:
             return _render_error(exc, default_peer="claude")
         return reply.text
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     async def forward_chatgpt(
         source_peer: str, source_reply: str, ask_for_opinion: bool = True
     ) -> str:
@@ -153,7 +153,7 @@ def register_tools() -> None:
             return _render_error(exc, default_peer="chatgpt")
         return reply.text
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     async def forward_claude(
         source_peer: str, source_reply: str, ask_for_opinion: bool = True
     ) -> str:
@@ -190,7 +190,7 @@ def register_tools() -> None:
             return _render_error(exc, default_peer="claude")
         return reply.text
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     async def get_peer_health(peer: str) -> str:
         """Return the four-signal health envelope for `peer` as JSON."""
         try:
@@ -205,7 +205,7 @@ def register_tools() -> None:
         return json.dumps(health.__dict__, default=str)
 
 
-    @mcp.tool()  # type: ignore[untyped-decorator]
+    @mcp.tool()
     async def list_peers() -> str:
         """Return the operator-facing roster of bound peers as a JSON array."""
         try:

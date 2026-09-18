@@ -5,11 +5,25 @@ build-backend = "hatchling.build"
 [project]
 name = "chat-bridge-mcp"
 version = "0.1.0"
+description = "Bridge MCP server driving Claude Desktop and ChatGPT Desktop via Chrome DevTools Protocol"
+license = {text = "MIT"}
+authors = [
+    {name = "Les Leslie", email = "les@wedgwoodwebworks.com"},
+]
+readme = "README.md"
 requires-python = ">=3.14"
+classifiers = [
+    "Programming Language :: Python :: 3.14",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: Microsoft :: Windows :: Windows 10",
+    "Operating System :: Microsoft :: Windows :: Windows 11",
+    "License :: OSI Approved :: MIT License",
+]
 dependencies = [
   "oneiric>=0.21.0",
   "mcp-common>=0.25.1",
   "pydantic>=2",
+  "pydantic-settings~=2.6",
   "websockets>=11",
   "pyyaml>=6",
   "httpx>=0.27",
@@ -25,13 +39,119 @@ dev = [
   "crackerjack",
 ]
 
+[project.urls]
+Homepage = "https://github.com/lesleslie/chat-bridge-mcp"
+Repository = "https://github.com/lesleslie/chat-bridge-mcp"
+Issues = "https://github.com/lesleslie/chat-bridge-mcp/issues"
+
 [project.scripts]
 chat-bridge-mcp = "chat_bridge_mcp.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["chat_bridge_mcp"]
 
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+extend-select = [
+    "I",
+    "N",
+    "UP",
+    "B",
+    "C4",
+    "SIM",
+    "TCH",
+]
+ignore = [
+    "B904",
+    "N806",
+    "E402",
+    "SIM102",
+    "SIM105",
+    "SIM108",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["chat_bridge_mcp"]
+force-sort-within-sections = true
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "B017",
+    "B007",
+    "E741",
+    "N801",
+    "N802",
+    "N803",
+    "N814",
+    "N818",
+    "SIM116",
+    "SIM117",
+]
+
+[tool.ruff.lint.pylint]
+max-args = 10
+max-branches = 15
+max-returns = 6
+max-statements = 55
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_return_any = true
+follow_imports = "normal"
+strict_optional = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-markers = ["e2e: marks end-to-end tests requiring real Electron fixture"]
+addopts = [
+    "--strict-markers",
+    "-ra",
+    "--cov=chat_bridge_mcp",
+    "--cov-report=term-missing",
+    "--cov-fail-under=89",
+]
+markers = [
+    "unit: Unit tests (fast, isolated)",
+    "integration: Integration tests (slower, may use external services)",
+    "e2e: End-to-end tests (slowest, full workflow)",
+    "slow: Mark test as slow (skip with -m 'not slow')",
+]
 testpaths = ["tests"]
+
+[tool.crackerjack]
+preserve_top_level_asyncio = false
+
+[tool.coverage.run]
+source = ["chat_bridge_mcp"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]

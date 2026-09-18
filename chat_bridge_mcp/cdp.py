@@ -19,7 +19,7 @@ class CDPConnection:
         async with httpx.AsyncClient(timeout=2.0) as client:
             resp = await client.get(url)
         resp.raise_for_status()
-        return resp.json()
+        return resp.json()  # type: ignore[no-any-return]
 
     @staticmethod
     async def find_top_level_target(host: str, port: int) -> dict[str, Any]:
@@ -101,7 +101,7 @@ class CDPSession:
                     raise CDPProtocolError(
                         f"CDP {method} returned error: {response['error']}"
                     )
-                return response.get("result", {})
+                return response.get("result", {})  # type: ignore[no-any-return]
         except (PeerNotAttachedError, CDPProtocolError, json.JSONDecodeError):
             # Domain-level errors raised above propagate as-is so callers
             # can branch on the specific exception type.

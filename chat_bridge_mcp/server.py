@@ -12,7 +12,7 @@ from typing import Any
 from fastmcp import FastMCP
 from mcp_common.cli import MCPServerCLIFactory
 from mcp_common.health import register_http_health_route
-from mcp_common.server import BaseOneiricServerMixin, create_runtime_components
+from mcp_common.server import BaseOneiricServerMixin, RuntimeComponents, create_runtime_components
 
 from chat_bridge_mcp import (
     __version__,
@@ -75,6 +75,13 @@ def _tool_error_string(exc: BridgeError) -> str:
 
 class ChatBridgeServer(BaseOneiricServerMixin):
     """Bridge server. Bound to the module-level `mcp` singleton."""
+
+    # Narrow the mixin's `config: MCPBaseSettings | MCPServerSettings` to the
+    # concrete ChatBridgeConfig so `validate_for_start` resolves. ChatBridgeConfig
+    # extends BaseSettings (not OneiricMCPConfig, which is BaseModel-based and
+    # silently drops SettingsConfigDict overrides — see config.py docstring).
+    config: ChatBridgeConfig  # type: ignore[assignment]
+    runtime: RuntimeComponents
 
     def __init__(self, config: ChatBridgeConfig) -> None:
         self.config = config

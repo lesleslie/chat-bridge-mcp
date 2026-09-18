@@ -78,4 +78,4 @@ def load_config(**overrides: object) -> ChatBridgeConfig:
             with path.open("r", encoding="utf-8") as f:
                 yaml_overrides = yaml.safe_load(f) or {}
     merged = {**yaml_overrides, **overrides}
-    return ChatBridgeConfig(**merged)
+    return ChatBridgeConfig.model_validate(merged)
