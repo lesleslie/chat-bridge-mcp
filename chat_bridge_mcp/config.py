@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-import yaml
 from pydantic_settings import BaseSettings, SettingsConfigDict
+import yaml
 
 # Single source of truth for the bridge port. Catalog grep target.
 DEFAULT_PORT: int = 3057
@@ -34,9 +34,7 @@ class ChatBridgeConfig(BaseSettings):
 
     # Anchored on the package install location so wheel installs work
     # without env-var overrides. NOT cwd-relative.
-    selectors_file: Path = (
-        Path(__file__).resolve().parent.parent / "settings" / "selectors.yaml"
-    )
+    selectors_file: Path = Path(__file__).resolve().parent.parent / "settings" / "selectors.yaml"
 
     guardrail_template: str | None = None
     strict_mode_on_start: bool = True
@@ -77,5 +75,5 @@ def load_config(**overrides: object) -> ChatBridgeConfig:
         if path.exists():
             with path.open("r", encoding="utf-8") as f:
                 yaml_overrides = yaml.safe_load(f) or {}
-    merged = {**yaml_overrides, **overrides}
+    merged = yaml_overrides | overrides
     return ChatBridgeConfig.model_validate(merged)

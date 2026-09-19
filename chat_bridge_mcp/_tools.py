@@ -42,7 +42,7 @@ def get_client(name: str) -> DesktopPeerAdapter:
 
 def get_clients() -> dict[str, DesktopPeerAdapter]:
     """Snapshot of the bound peer-adapter registry (for diagnostics)."""
-    return dict(_clients)
+    return _clients.copy()
 
 
 def _reset() -> None:

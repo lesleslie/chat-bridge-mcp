@@ -72,7 +72,7 @@ def _tool_error_string(exc: BridgeError) -> str:
             f"Update settings/selectors.yaml and `chat-bridge-mcp restart`."
         )
     if isinstance(exc, StreamingTimeoutError):
-        timeout = (exc.context or {}).get("timeout", "?")
+        timeout = exc.context.get("timeout", "?")
         return f"{exc.peer} response did not complete within {timeout}s."
     if isinstance(exc, GuardrailError):
         return "Internal: prompt rejected by guardrail. Report as a bug."

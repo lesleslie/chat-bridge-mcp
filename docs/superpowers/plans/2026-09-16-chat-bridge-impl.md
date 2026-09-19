@@ -3406,7 +3406,7 @@ and ChatGPT Desktop by running these steps. **If any step fails, do not deploy.*
 
 ## Quality & CI
 
-This server uses [Crackerjack](https://github.com/lesleskie/crackerjack) for
+This server uses [Crackerjack](https://github.com/lesleslie/crackerjack) for
 repo-wide quality gates. Run `uv run crackerjack run` for full validation.
 
 ## Documentation standards
