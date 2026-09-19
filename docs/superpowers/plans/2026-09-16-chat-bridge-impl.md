@@ -2,7 +2,7 @@
 status: complete
 role: implementation
 date: 2026-09-16
-last_reviewed: 2026-09-17
+last_reviewed: 2026-09-19
 superseded_by: null
 blocks_on:
   - docs/superpowers/specs/2026-09-16-chat-bridge-mcp-design.md
@@ -11,7 +11,7 @@ topic: chat-bridge-mcp
 
 # chat-bridge-mcp Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build `chat-bridge-mcp`, a single MCP server that bridges one Claude Desktop and one ChatGPT Desktop on the same machine via Chrome DevTools Protocol, exposing 6 tools (`ask_chatgpt`, `ask_claude`, `forward_chatgpt`, `forward_claude`, `list_peers`, `get_peer_health`) over Streamable HTTP on port 3057.
 
@@ -119,7 +119,7 @@ Tasks follow in dependency order: each task's `Interfaces: Consumes` block names
 - Consumes: nothing (this is the entry point)
 - Produces: `python -m chat_bridge_mcp --version` prints `chat-bridge-mcp 0.1.0`. Subsequent tasks extend `__main__.py` to `start`/`stop`/`health`/etc.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/integration/test_cli_smoke.py`:
 
@@ -149,13 +149,13 @@ def test_cli_version_prints():
 
 `tests/__init__.py` and `tests/integration/__init__.py`: empty files (so test discovery works).
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 `cd /Users/les/Projects/chat-bridge-mcp && uv run pytest tests/integration/test_cli_smoke.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'chat_bridge_mcp'`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `pyproject.toml`:
 
@@ -236,13 +236,13 @@ if __name__ == "__main__":
     main()
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 `cd /Users/les/Projects/chat-bridge-mcp && uv sync && uv run pytest tests/integration/test_cli_smoke.py -v`
 
 Expected: PASS — both tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -264,7 +264,7 @@ git commit -m "feat: bootstrap chat-bridge-mcp package skeleton with CLI entry p
 - Consumes: nothing
 - Produces: a `BridgeError` base class and 6 subclasses: `PeerNotAttachedError`, `SelectorMissingError`, `SelectorUnmatchedError`, `StreamingTimeoutError`, `GuardrailFailure`, `CDPProtocolError`. Each carries `peer: str | None` and `context: dict[str, Any]`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/unit/test_exceptions.py`:
 
@@ -319,13 +319,13 @@ def test_default_message_is_strable():
 
 `tests/unit/__init__.py`: empty file.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 `uv run pytest tests/unit/test_exceptions.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'chat_bridge_mcp.exceptions'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `chat_bridge_mcp/exceptions.py`:
 
@@ -387,13 +387,13 @@ class CDPProtocolError(BridgeError):
     """Malformed JSON-RPC response from CDP target, or CDP-level WS disconnect surfaced."""
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 `uv run pytest tests/unit/test_exceptions.py -v`
 
 Expected: PASS — all 9 cases pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -413,7 +413,7 @@ git commit -m "feat(exceptions): BridgeError hierarchy with 6 subclasses"
 - Consumes: `oneiric.core.config:OneiricMCPConfig`, `pydantic_settings:SettingsConfigDict`
 - Produces: `chat_bridge_mcp.config.DEFAULT_PORT: int = 3057`, `class ChatBridgeConfig(OneiricMCPConfig)` with `model_config = SettingsConfigDict(env_prefix="CHAT_BRIDGE_MCP_", env_file=".env", extra="allow")` and a `.validate_for_start()` method.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/unit/test_config.py`:
 
@@ -478,13 +478,13 @@ def test_validate_for_start_allows_defaults():
     load_config().validate_for_start()
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 `uv run pytest tests/unit/test_config.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'chat_bridge_mcp.config'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `chat_bridge_mcp/config.py`:
 
@@ -555,13 +555,13 @@ def load_config(**overrides) -> ChatBridgeConfig:
     return ChatBridgeConfig(**overrides)
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 `uv run pytest tests/unit/test_config.py -v`
 
 Expected: PASS — all 6 cases pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -583,7 +583,7 @@ git commit -m "feat(config): ChatBridgeConfig with model_config SettingsConfigDi
 - Consumes: `chat_bridge_mcp.exceptions:SelectorMissingError`, `pyyaml`
 - Produces: `chat_bridge_mcp.selectors.SelectorSet` (frozen dataclass), `chat_bridge_mcp.selectors.load_selectors(path: Path, *, os_name: str | None = None) -> dict[str, SelectorSet]`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/unit/test_selectors.py`:
 
@@ -624,13 +624,13 @@ def test_load_selectors_missing_required_key_raises(tmp_path):
         load_selectors(yaml, os_name="macos")
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 `uv run pytest tests/unit/test_selectors.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'chat_bridge_mcp.selectors'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `chat_bridge_mcp/settings/__init__.py`:
 
@@ -747,13 +747,13 @@ def load_selectors(path: Path, *, os_name: str | None = None) -> dict[str, Selec
     return result
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 `uv run pytest tests/unit/test_selectors.py -v`
 
 Expected: PASS — all 3 cases pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -773,7 +773,7 @@ git commit -m "feat(selectors): SelectorSet + load_selectors YAML loader with st
 - Consumes: `chat_bridge_mcp.exceptions:GuardrailFailure`, stdlib `secrets`
 - Produces: `chat_bridge_mcp.guardrail.wrap(source_reply: str, *, source_peer: str, ask_for_opinion: bool = True, nonce: str | None = None) -> str`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/unit/test_guardrail.py`:
 
@@ -824,13 +824,13 @@ def test_wrap_ask_for_opinion_false_phrasing():
     assert "log for context" in out_no
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 `uv run pytest tests/unit/test_guardrail.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'chat_bridge_mcp.guardrail'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `chat_bridge_mcp/guardrail.py`:
 
@@ -902,13 +902,13 @@ def wrap(
 
 **IMPORTANT**: Implementer — remove the two wrong-import lines marked "intentionally wrong" before saving. They were inserted to make the test surface obvious; the real file imports `chat_bridge_mcp.exceptions.GuardrailFailure` only.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 `uv run pytest tests/unit/test_guardrail.py -v`
 
 Expected: PASS — all 5 cases pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -929,7 +929,7 @@ git commit -m "feat(guardrail): nonce-protected wrap() for forward_* tools"
 - Consumes: `httpx`, `websockets`, stdlib `json`, `chat_bridge_mcp.exceptions:PeerNotAttachedError`, `CDPProtocolError`
 - Produces: `class CDPConnection` with `discover_targets(host, port) -> list[dict]`, `find_top_level_target(host, port) -> dict`, `attach(target) -> CDPSession`. `class CDPSession` with `evaluate(expression) -> Any`, `dispatch_key_event(key, code, modifiers=0)`, `query_selector_all(selector) -> int`, `send(method, params=None) -> dict`, `close()`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/conftest.py` (shared fixture for fake CDP WebSocket server):
 
@@ -1041,13 +1041,13 @@ async def test_websocket_disconnect_raises_cdp_protocol_error(fake_cdp):
 implementation in `tests/conftest.py` than the rough sketch above.
 The full implementation belongs in the test fixture; see Step 3.)
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 `uv run pytest tests/unit/test_cdp.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'chat_bridge_mcp.cdp'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `chat_bridge_mcp/cdp.py`:
 
@@ -1182,13 +1182,13 @@ class CDPSession:
 
 A reasonable full implementation (≈ 70 lines of asyncio + websockets.serve handlers) fits `tests/conftest.py`. Implementer writes it; ship a working one.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 `uv run pytest tests/unit/test_cdp.py -v`
 
 Expected: PASS — the 3 tests pass once the fixture in `tests/conftest.py` is complete.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -1209,7 +1209,7 @@ git commit -m "feat(cdp): thin async CDP client over websockets + fake-CDP test 
 - Consumes: `chat_bridge_mcp.exceptions:BridgeError`, `mcp_common.health.feed:HealthFeedState`
 - Produces: `class DesktopPeerAdapter(ABC)` with `attach()`, `detach()`, `send(prompt)`, `health()`, `status()`; `class PeerReply`, `PeerStatus`, `PeerHealth` frozen dataclasses.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/unit/test_peers_base.py`:
 
@@ -1315,13 +1315,13 @@ def test_peer_reply_dataclass_is_frozen():
         r.peer = "chatgpt"
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 `uv run pytest tests/unit/test_peers_base.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'chat_bridge_mcp.peers'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `chat_bridge_mcp/peers/__init__.py`:
 
@@ -1492,13 +1492,13 @@ class DesktopPeerAdapter(ABC):
 
 **Verified API (per `mcp_common/health/feed.py`)**: `HealthFeedState` is a `@dataclass` with read-only attributes. Mutators are module-level free functions `record_success(state)` / `record_error(state)` — both increment the appropriate counter; neither takes a message arg; neither sets `last_updated_timestamp` (we do it manually via `time.time()`). `entities_count` is also mutated manually in `attach()`. This matches the spec's `feed_state.entities_count > 0` semantics and unblocks Task 7's tests.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 `uv run pytest tests/unit/test_peers_base.py -v`
 
 Expected: PASS — all 5 cases pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -1517,7 +1517,7 @@ git commit -m "feat(peers/base): DesktopPeerAdapter ABC + dataclasses + try/fina
 - Consumes: `chat_bridge_mcp.cdp:CDPConnection, CDPSession`, `chat_bridge_mcp.selectors:load_selectors`, `chat_bridge_mcp.peers.base:DesktopPeerAdapter, PeerReply`, `chat_bridge_mcp.config:ChatBridgeConfig`
 - Produces: `class ClaudeDesktopAdapter(DesktopPeerAdapter)` with `name="claude"`, `cdp_port=9229`. `attach()` resolves Claude Desktop's page and self-tests the `claude` selectors. `send()` drives the standard input box / send-button / streaming-done-poll / response-extract flow.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/unit/test_peers_claude.py`:
 
@@ -1635,13 +1635,13 @@ async def test_detach_closes_session(config, patched_cdp, monkeypatch):
     session.close.assert_awaited_once()
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 `uv run pytest tests/unit/test_peers_claude.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'chat_bridge_mcp.peers.claude'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `chat_bridge_mcp/peers/claude.py`:
 
@@ -1805,13 +1805,13 @@ class ClaudeDesktopAdapter(DesktopPeerAdapter):
 
 **IMPORTANT**: Implementer — remove the wrong-import lines marked "wrong". The real imports are `chat_bridge_mcp.cdp` and `chat_bridge_mcp.exceptions`. Test the file with `python -c "from chat_bridge_mcp.peers.claude import ClaudeDesktopAdapter"` after cleaning up.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 `uv run pytest tests/unit/test_peers_claude.py -v`
 
 Expected: PASS — all 5+ cases pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -1829,7 +1829,7 @@ git commit -m "feat(peers/claude): ClaudeDesktopAdapter drives Claude Desktop vi
 
 **Interfaces:** mirror of Task 8 with `name="chatgpt"`, `cdp_port=9230`. The selectors are loaded under the `chatgpt` key in the YAML.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/unit/test_peers_chatgpt.py` — structurally identical to `tests/unit/test_peers_claude.py` but:
 
@@ -1839,13 +1839,13 @@ git commit -m "feat(peers/claude): ClaudeDesktopAdapter drives Claude Desktop vi
 
 (Concrete test code mirrors Task 8 with `claude` → `chatgpt` substitution; see `tests/unit/test_peers_claude.py` for the shape.)
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 `uv run pytest tests/unit/test_peers_chatgpt.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'chat_bridge_mcp.peers.chatgpt'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `chat_bridge_mcp/peers/chatgpt.py` — direct mirror of `peers/claude.py`:
 
@@ -1859,13 +1859,13 @@ Expected: FAIL with `ModuleNotFoundError: No module named 'chat_bridge_mcp.peers
 
 (The full file is ~150 lines and is structural-copy of `claude.py` with the substitutions above. Implementer copies the file and applies the substitutions; **do not** refactor into a shared base class for v1 — the spec's per-file ownership keeps `claude.py` and `chatgpt.py` simple to audit independently.)
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 `uv run pytest tests/unit/test_peers_chatgpt.py -v`
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -1885,7 +1885,7 @@ git commit -m "feat(peers/chatgpt): ChatGPTDesktopAdapter drives ChatGPT Desktop
 - Consumes: `chat_bridge_mcp.peers.base:DesktopPeerAdapter, PeerReply, PeerStatus, PeerHealth`, `chat_bridge_mcp.guardrail:wrap`, `chat_bridge_mcp.server:mcp` (the module-level singleton created in Task 11a)
 - Produces: the 6 MCP tools bound to `mcp`: `ask_chatgpt`, `ask_claude`, `forward_chatgpt`, `forward_claude`, `list_peers`, `get_peer_health`. A module-level `_clients: dict[str, DesktopPeerAdapter]` registry. `set_clients(claude, chatgpt)` helper for `server.py` (called in Task 11b's startup).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/unit/test_tools.py`:
 
@@ -1925,13 +1925,13 @@ def test_tool_names_registered_on_mcp():
     }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 `uv run pytest tests/unit/test_tools.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'chat_bridge_mcp._tools'`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `chat_bridge_mcp/_tools.py`:
 
@@ -2127,13 +2127,13 @@ async def get_peer_health(
 
 **Implementer note**: complete the `_format_error` mapping for the remaining 5 exception types per `tests/unit/test_server_tools.py::test_tool_error_string_mapping` (added in Task 13). For now, the placeholder returns generic messages; the canonical strings are pinned in Task 13's tests.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 `uv run pytest tests/unit/test_tools.py -v`
 
 Expected: PASS for the 3 tests above. The `_format_error` mapping is incomplete but doesn't break the tests in this task; Task 13 fills the table.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -2155,7 +2155,7 @@ Split from the original Task 11 because Task 10 imports `chat_bridge_cdp.server.
 - Consumes: `fastmcp:FastMCP`, `mcp_common.server:BaseOneiricServerMixin` (used as a base class only — full lifecycle in Task 11b)
 - Produces: `chat_bridge_mcp.server.mcp` (FastMCP singleton). `class ChatBridgeServer(BaseOneiricServerMixin)` with `__init__(config)` and `get_app()` only (startup/shutdown/health-check filled in by Task 11b).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/unit/test_server_skeleton.py`:
 
@@ -2189,13 +2189,13 @@ def test_get_app_returns_http_app():
 
 **IMPORTANT**: Implementer — remove the wrong-import line before saving. The real import is `from chat_bridge_mcp.server import ChatBridgeServer, mcp`. The wrong-import is included only to make the surface obvious for the implementer's TDD red-phase run.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 `uv run pytest tests/unit/test_server_skeleton.py -v`
 
 Expected: FAIL with `ModuleNotFoundError: No module named 'chat_bridge_mcp.server'`.
 
-- [ ] **Step 3: Write minimal implementation**
+- [x] **Step 3: Write minimal implementation**
 
 `chat_bridge_mcp/server.py`:
 
@@ -2230,13 +2230,13 @@ class ChatBridgeServer(BaseOneiricServerMixin):
         return self.mcp.http_app
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 `uv run pytest tests/unit/test_server_skeleton.py -v`
 
 Expected: PASS — all 3 cases pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -2260,7 +2260,7 @@ Picks up where Task 11a left off. Fills in `ChatBridgeServer.startup`, `shutdown
 - Consumes: Task 11a's `chat_bridge_mcp.server.mcp` and `ChatBridgeServer` shell. `mcp_common.cli:MCPServerCLIFactory` (verified signature: `def create_server_cli(cls, server_class, config_class, name, _description="MCP Server", ...)`). `chat_bridge_mcp.peers.claude/chatgpt` adapters. `chat_bridge_mcp._tools.set_clients`. `chat_bridge_cdp.health:register_http_health_route` (verified: `def register_http_health_route(mcp, service_name, version, extra_components=..., auth_health_provider=None)`).
 - Produces: working `chat-bridge-mcp start/stop/restart/status/health/version/doctor` CLI. Working `/health` HTTP route.
 
-- [ ] **Step 1: Create the fake CDP server**
+- [x] **Step 1: Create the fake CDP server**
 
 Create `tests/integration/_fake_cdp_server.py` (~80 lines):
 
@@ -2372,7 +2372,7 @@ if __name__ == "__main__":
 `test_server_lifecycle.py`. The hardcoded ports above are convention — see
 `cdp_port` defaults in `settings/selectors.yaml`.)
 
-- [ ] **Step 2: Create the integration test file**
+- [x] **Step 2: Create the integration test file**
 
 `tests/integration/test_server_lifecycle.py`:
 
@@ -2728,7 +2728,7 @@ def test_version_command_prints():
     assert ":" in r.stdout or r.stdout.strip() == "0.1.0"
 ```
 
-- [ ] **Step 3: Extend server.py with full lifecycle**
+- [x] **Step 3: Extend server.py with full lifecycle**
 
 `chat_bridge_mcp/server.py` (replace the Task 11a stub with the full impl):
 
@@ -2869,13 +2869,13 @@ if __name__ == "__main__":
 
 **Import cleanup note for `chat_bridge_mcp/server.py`**: the imports `from chat_bridge_mcp.exceptions import BridgeError, PeerNotAttachedError, SelectorMissingError, SelectorUnmatchedError, StreamingTimeoutError, GuardrailFailure, CDPProtocolError` must be present at top of file (already implicit above; implementer adds them explicitly).
 
-- [ ] **Step 4: Run all integration tests**
+- [x] **Step 4: Run all integration tests**
 
 `uv run pytest tests/integration/test_server_lifecycle.py -v`
 
 Expected: PASS — all 12 named tests pass.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -2894,7 +2894,7 @@ git commit -m "feat(server): Task 11b — full lifecycle + /health envelope + in
 
 **Interfaces:** Consumes the per-OS schema in `chat_bridge_mcp/settings/selectors.yaml` (created in Task 4). Pins the four-key contract per peer per OS.
 
-- [ ] **Step 1: Write the test (no failing-needed step — write against existing YAML)**
+- [x] **Step 1: Write the test (no failing-needed step — write against existing YAML)**
 
 `tests/unit/test_selectors_yaml_schema.py`:
 
@@ -2964,13 +2964,13 @@ def test_stop_generating_indicator_is_optional():
                 )
 ```
 
-- [ ] **Step 2: Run the test**
+- [x] **Step 2: Run the test**
 
 `uv run pytest tests/unit/test_selectors_yaml_schema.py -v`
 
 Expected: PASS — this test ships green against the bundled `settings/selectors.yaml` from Task 4.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -2989,7 +2989,7 @@ git commit -m "test(schema): TestSelectorsYamlSchemaStable guard for v1.0.0 ship
 
 **Interfaces:** All tests are pure-Python; no new product code.
 
-- [ ] **Step 1: Add named tests to `tests/integration/test_server_lifecycle.py`**
+- [x] **Step 1: Add named tests to `tests/integration/test_server_lifecycle.py`**
 
 Append the following helper + named tests to the file:
 
@@ -3073,7 +3073,7 @@ async def test_concurrent_calls_pin_drop(bridge_proc, fake_cdp):
     # pin here is the equality of the two responses, not the text content.
 ```
 
-- [ ] **Step 2: Create `tests/unit/test_server_tools.py` for chat-surface pinning**
+- [x] **Step 2: Create `tests/unit/test_server_tools.py` for chat-surface pinning**
 
 ```python
 from __future__ import annotations
@@ -3131,13 +3131,13 @@ def test_chat_surface_string_for_exception(exc_cls, template):
 
 **Implementer note**: simplify the parametrized assertion if the format() string requires too many keyword arguments — pin the raw output strings directly. The test's goal is to catch drift between spec and impl.
 
-- [ ] **Step 3: Run both test files**
+- [x] **Step 3: Run both test files**
 
 `uv run pytest tests/unit/test_server_tools.py tests/integration/test_server_lifecycle.py -v`
 
 Expected: PASS — chat-surface strings pinned; lifecycle tests pass; the `pytest.skip`'d cases are skipped.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -3157,7 +3157,7 @@ git commit -m "test(integration): named tests for lifecycle + chat-surface strin
 
 **Interfaces:** All scripts; e2e fixture is a node.js process spawned by the test.
 
-- [ ] **Step 1: Add the headless Electron app**
+- [x] **Step 1: Add the headless Electron app**
 
 `tests/e2e/fixtures/electron/package.json`:
 
@@ -3227,7 +3227,7 @@ macos:
     stop_generating_indicator: null
 ```
 
-- [ ] **Step 2: Add the e2e test (gated)**
+- [x] **Step 2: Add the e2e test (gated)**
 
 `tests/e2e/test_headless_electron.py`:
 
@@ -3320,7 +3320,7 @@ def test_real_chatgpt_input_set_with_react_setter_trick(electron_fixture, bridge
     assert "pong" in text.lower()
 ```
 
-- [ ] **Step 3: Install the fixture and run it**
+- [x] **Step 3: Install the fixture and run it**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -3335,7 +3335,7 @@ CHAT_BRIDGE_MCP_E2E=1 uv run pytest tests/e2e/test_headless_electron.py -v
 
 Expected: the test runs against the live Electron + bridge subprocess; the implementation-stubs above will be filled in by the implementer in the `pytest.skip` lines they uncomment as they wire the stdio MCP client dispatch.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -3352,7 +3352,7 @@ git commit -m "test(e2e): headless Electron fixture + one e2e test gated by CHAT
 
 **Interfaces:** Documentation only; no production code.
 
-- [ ] **Step 1: Write the README**
+- [x] **Step 1: Write the README**
 
 `README.md`:
 
@@ -3415,7 +3415,7 @@ See [Catalog README](https://github.com/lesleslie/www-mcp-servers) for the
 documentation standards each fleet member follows.
 ````
 
-- [ ] **Step 2: Run all default tests + coverage gate**
+- [x] **Step 2: Run all default tests + coverage gate**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -3425,7 +3425,7 @@ uv run crackerjack run
 
 Expected: PASS — `pytest` runs the default suite, coverage meets `--cov-fail-under=89`, crackerjack passes.
 
-- [ ] **Step 3: Verify PyPI name availability**
+- [x] **Step 3: Verify PyPI name availability**
 
 ```bash
 curl -sI https://pypi.org/project/chat-bridge-mcp/ | head -1
@@ -3433,7 +3433,7 @@ curl -sI https://pypi.org/project/chat-bridge-mcp/ | head -1
 
 Expected: `HTTP/1.1 404 Not Found` (already confirmed 2026-09-16).
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 cd /Users/les/Projects/chat-bridge-mcp
@@ -3466,7 +3466,24 @@ If any check fails, fix the issue (new commit) before declaring done.
 
 ## End of plan
 
-15 tasks. ~85% coverage floor (crackerjack gate). 6 tools. Single HTTP bridge on port 3057. E2E fixture gated by `CHAT_BRIDGE_MCP_E2E=1`.
+**Status**: Complete for **v0.1.0** milestone (2026-09-17, refreshed 2026-09-19). All 15 tasks implemented in code. 6 tools registered. Single HTTP bridge on port 3057. E2E fixture gated by `CHAT_BRIDGE_MCP_E2E=1`.
 
-**Implementer**: When all 15 tasks are complete and the self-review checklist passes, commit a final `chore: v1.0.0 ready for release` and surface to the user. The user will run `crackerjack run -p minor` (per `crackerjack-p-minor-full-lifecycle.md` memory) to bump version + tag + publish to PyPI.
+**Coverage**: 100% (`pytest --cov=chat_bridge_mcp` passes `--cov-fail-under=89`, see `pyproject.toml`). Plan's stated ~85% floor was eclipsed by the post-plan coverage push in commit `cf5acfb`.
+
+**Delivered bonus work beyond the 15-task plan**:
+
+- Coverage push 79.48% → 100% (`cf5acfb`)
+- WS-leak race fix via `asyncio.Lock` in `_ensure_session` (`0e7de08`)
+- `asyncio.to_thread` for synchronous YAML I/O off the event loop (`925406c`)
+- Pydantic-settings config + license / authors / classifiers / urls / ruff / mypy / crackerjack config blocks + `--cov-fail-under=89` (`cfa2907`)
+- `CLAUDE.md`, `AGENTS.md`, `CHANGELOG.md` (`133e5fe`)
+- README alignment with v0.1.0 status + concurrency + `HealthFeedState` 4-signal docs (`d1f890e`)
+- Cancellation-safe tool bodies via `except Exception` (not `BaseException`) so `CancelledError` propagates (`5b79096`)
+- Spec §5.1.a deviation closure — system prompt + empty-question validation (`3771846`)
+
+**Deferred to v0.2.0** (per user posture 2026-09-17, recorded in `9ab68d6`):
+
+- **T22**: `/health` returns 503 on degraded — blocked by an mcp-common API gap; needs upstream contract fix in mcp-common before chat-bridge-mcp can wire it up.
+
+**Implementer**: Plan is feature-complete for v0.1.0. v1.0.0 release has no scheduled date; the user retains control of version bumping and PyPI publishing (per `feedback-mcp-common-version-bump-is-user.md` and `crackerjack-version-bumping-manual.md`). To publish, the user runs `crackerjack run -p minor` from `/Users/les/Projects/chat-bridge-mcp` — that bumps `0.0.x → 0.1.0`, runs the gate, builds, and uploads to PyPI.
 
