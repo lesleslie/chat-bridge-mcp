@@ -16,28 +16,170 @@ chat via Chrome DevTools Protocol.
 plus the 4 Bodai baseline tools (`discover_tools`, `get_liveness`, `get_readiness`,
 `health_check_all`).
 
-**OS support:** macOS (darwin) and Windows only. Linux is not supported — the
-selector YAML has no `linux:` block.
+**OS support:** macOS and Windows are fully supported. Linux works against
+community-built Electron desktop apps (Anthropic and OpenAI do not ship
+official Linux builds), but the shipped selector YAML has only `darwin:`
+and `windows:` blocks — Linux operators must add a `linux:` block (see
+[Quick start](#quick-start)).
 
 ## Quick start
 
+The bridge drives each desktop app via Chrome DevTools Protocol (CDP), so
+**each desktop app must be running with `--remote-debugging-port=PORT` BEFORE
+the bridge starts**. Default ports: **9229** for Claude, **9230** for
+ChatGPT. Override via env vars `CHAT_BRIDGE_MCP_CDP_CLAUDE_PORT` and
+`CHAT_BRIDGE_MCP_CDP_CHATGPT_PORT` if you need to remap.
+
+### Step 1 — Install chat-bridge-mcp
+
+Same command on macOS, Windows, and Linux (requires Python ≥ 3.14 and
+[`uv`](https://docs.astral.sh/uv/)):
+
 ```bash
-# Install
 git clone https://github.com/lesleslie/chat-bridge-mcp
 cd chat-bridge-mcp
 uv sync --extra dev
+```
 
-# Pin --remote-debugging-port in each desktop's launcher
-#   macOS:  edit /Applications/Claude.app and /Applications/ChatGPT.app launchers
-#            to include --remote-debugging-port=9229 / --remote-debugging-port=9230
-#   Win:    Properties > Target = "...Claude.exe" --remote-debugging-port=9229
+### Step 2 — Launch each desktop app with CDP enabled
 
-# Launch each desktop app normally (double-click).
-# Verify each is the currently-active chat you expect.
+#### macOS (darwin)
 
-# Start the bridge
+Official apps: `/Applications/Claude.app` and `/Applications/ChatGPT.app`.
+
+**One-shot launch** (re-run each session):
+
+```bash
+open -a "Claude" --args --remote-debugging-port=9229
+open -a "ChatGPT" --args --remote-debugging-port=9230
+```
+
+**Persistent launch** so CDP survives every login — wrap the commands in
+a shell script and add it as a login item (`System Settings → General →
+Login Items → +`):
+
+```bash
+#!/usr/bin/env bash
+# ~/bin/launch-cdp-desktops.sh
+open -a "Claude" --args --remote-debugging-port=9229
+open -a "ChatGPT" --args --remote-debugging-port=9230
+```
+
+```bash
+chmod +x ~/bin/launch-cdp-desktops.sh
+```
+
+**Verify CDP is listening:**
+
+```bash
+curl -s http://127.0.0.1:9229/json/version | jq .webSocketDebuggerUrl
+curl -s http://127.0.0.1:9230/json/version | jq .webSocketDebuggerUrl
+```
+
+#### Windows 10 / 11
+
+Official apps (paths vary by installer version; common locations shown):
+
+- **Claude Desktop** — `%LOCALAPPDATA%\AnthropicClaude\claude.exe`
+  (verify with `where claude` from PowerShell).
+- **ChatGPT Desktop** — `%LOCALAPPDATA%\Programs\ChatGPT\ChatGPT.exe`
+  (verify with `where chatgpt`).
+
+**One-shot launch** (PowerShell):
+
+```powershell
+& "$env:LOCALAPPDATA\AnthropicClaude\claude.exe" --remote-debugging-port=9229
+& "$env:LOCALAPPDATA\Programs\ChatGPT\ChatGPT.exe" --remote-debugging-port=9230
+```
+
+**Persistent launch** (recommended for bridge operators):
+
+1. Right-click `claude.exe` → **Create shortcut**.
+2. Right-click the shortcut → **Properties** → **Shortcut** tab.
+3. Append `--remote-debugging-port=9229` to the **Target** field so it
+   reads `"...claude.exe" --remote-debugging-port=9229`.
+4. Repeat for `ChatGPT.exe` with `--remote-debugging-port=9230`.
+5. Move both shortcuts into the Startup folder: press `Win+R`, type
+   `shell:startup`, press Enter, drop the shortcuts there.
+
+**Verify CDP is listening** (PowerShell):
+
+```powershell
+(Invoke-WebRequest http://127.0.0.1:9229/json/version).Content
+(Invoke-WebRequest http://127.0.0.1:9230/json/version).Content
+```
+
+#### Linux (community builds only)
+
+> **Note:** Anthropic and OpenAI do not ship official Claude Desktop or
+> ChatGPT Desktop builds for Linux. Linux users run community packages
+> (e.g., `claude-desktop` from the AUR on Arch, or third-party Electron
+> wrappers for ChatGPT). The bridge code itself is cross-platform Python,
+> but the shipped selector YAML has only `darwin:` and `windows:` blocks —
+> **Linux operators must add a `linux:` block to `settings/selectors.yaml`
+> before starting the bridge** (template below).
+
+**Persistent launch** via `.desktop` file — append `--remote-debugging-port`
+to the `Exec=` line:
+
+```bash
+# Edit Claude Desktop launcher
+sudo sed -i 's|^Exec=.*|& --remote-debugging-port=9229|' \
+    /usr/share/applications/claude-desktop.desktop
+
+# Edit ChatGPT Desktop launcher
+sudo sed -i 's|^Exec=.*|& --remote-debugging-port=9230|' \
+    /usr/share/applications/chatgpt-desktop.desktop
+```
+
+**One-shot launch** by running the underlying Electron binary directly:
+
+```bash
+/path/to/claude-desktop --remote-debugging-port=9229 &
+/path/to/chatgpt-desktop --remote-debugging-port=9230 &
+```
+
+**Verify CDP is listening:**
+
+```bash
+curl -s http://127.0.0.1:9229/json/version
+curl -s http://127.0.0.1:9230/json/version
+```
+
+**Required `linux:` block for `settings/selectors.yaml`** (CSS selectors
+are usually identical to the `windows:` block since both Electron apps
+render the same DOM across platforms — verify against your installed app):
+
+```yaml
+linux:
+  claude:
+    input_box:               "[contenteditable='true'][data-testid='composer-input']"
+    send_button:             "button[aria-label='Send']"
+    response_container:      "[data-message-author='assistant']"
+    stop_generating_indicator: "button[aria-label='Stop response']"
+  chatgpt:
+    input_box:               "textarea#prompt-textarea"
+    send_button:             "button[data-testid='send-button']"
+    response_container:      "[data-message-author-role='assistant']"
+    stop_generating_indicator: "button[aria-label='Stop generating']"
+```
+
+After both desktop apps are running and CDP is verified, **sign into the
+chat you want each app to drive and ensure it is the currently-active
+chat window** — the bridge targets whichever chat is in the foreground.
+
+### Step 3 — Start the bridge
+
+Same command on every platform:
+
+```bash
 uv run chat-bridge-mcp start
 ```
+
+Expect stdout logs showing two `attach succeeded` lines (one per peer).
+If a peer fails to attach, the bridge stderr will surface a
+`PeerNotAttachedError` — most commonly the CDP port isn't listening yet
+or the chat window isn't focused.
 
 ## First-install manual smoke-test (mandatory)
 
