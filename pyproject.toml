@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "chat-bridge-mcp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Bridge MCP server driving Claude Desktop and ChatGPT Desktop via Chrome DevTools Protocol"
 license = {text = "MIT"}
 authors = [
