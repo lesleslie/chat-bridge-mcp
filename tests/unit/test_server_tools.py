@@ -29,7 +29,7 @@ from chat_bridge_mcp import _tools
 from chat_bridge_mcp.exceptions import (
     BridgeError,
     CDPProtocolError,
-    GuardrailFailure,
+    GuardrailError,
     PeerNotAttachedError,
     SelectorMissingError,
     SelectorUnmatchedError,
@@ -48,7 +48,7 @@ EXPECTED_MESSAGES: dict[type[BridgeError], str] = {
         "Update settings/selectors.yaml and `chat-bridge-mcp restart`."
     ),
     StreamingTimeoutError: "{peer} response did not complete within {timeout}s.",
-    GuardrailFailure: "Internal: prompt rejected by guardrail. Report as a bug.",
+    GuardrailError: "Internal: prompt rejected by guardrail. Report as a bug.",
     CDPProtocolError: "{peer} CDP target returned an error. Run `chat-bridge-mcp restart`.",
 }
 
@@ -324,7 +324,7 @@ def test_forward_chatgpt_tool_is_registered() -> None:
 
 @pytest.mark.asyncio
 async def test_forward_chatgpt_returns_guardrail_chat_surface_for_empty_source_reply() -> None:
-    """Empty source_reply -> guardrail.wrap raises GuardrailFailure -> chat surface."""
+    """Empty source_reply -> guardrail.wrap raises GuardrailError -> chat surface."""
     from chat_bridge_mcp.server import mcp
 
     tool = await mcp.get_tool("forward_chatgpt")
@@ -439,7 +439,7 @@ def test_forward_claude_tool_is_registered() -> None:
 
 @pytest.mark.asyncio
 async def test_forward_claude_returns_guardrail_chat_surface_for_empty_source_reply() -> None:
-    """Empty source_reply -> guardrail.wrap raises GuardrailFailure -> chat surface."""
+    """Empty source_reply -> guardrail.wrap raises GuardrailError -> chat surface."""
     from chat_bridge_mcp.server import mcp
 
     tool = await mcp.get_tool("forward_claude")

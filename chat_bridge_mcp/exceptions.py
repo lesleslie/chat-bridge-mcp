@@ -48,7 +48,7 @@ class StreamingTimeoutError(BridgeError):
     """Response did not complete within streaming_timeout_seconds."""
 
 
-class GuardrailFailure(BridgeError):
+class GuardrailError(BridgeError):
     """Guardrail template fails validation, or source_reply contains the nonce."""
 
 

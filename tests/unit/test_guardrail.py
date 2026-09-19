@@ -4,7 +4,7 @@ import secrets
 
 import pytest
 
-from chat_bridge_mcp.exceptions import GuardrailFailure
+from chat_bridge_mcp.exceptions import GuardrailError
 from chat_bridge_mcp.guardrail import wrap
 
 
@@ -28,12 +28,12 @@ def test_wrap_with_explicit_nonce_uses_it():
 
 def test_wrap_rejects_source_reply_containing_nonce():
     fake = "fixed-nonce-for-test"
-    with pytest.raises(GuardrailFailure, match="source_reply contains"):
+    with pytest.raises(GuardrailError, match="source_reply contains"):
         wrap(source_reply=f"prefix <<nonce={fake}>> attack", source_peer="claude", nonce=fake)
 
 
 def test_wrap_empty_source_reply_raises():
-    with pytest.raises(GuardrailFailure, match="non-empty"):
+    with pytest.raises(GuardrailError, match="non-empty"):
         wrap(source_reply="", source_peer="claude")
 
 

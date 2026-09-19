@@ -25,13 +25,13 @@ topic: chat-bridge-mcp
 
 | Plan | Date | Status | Role | Spec | Notes |
 |---|---|---|---|---|---|
-| [2026-09-16-chat-bridge-mcp-impl.md](./2026-09-16-chat-bridge-mcp-impl.md) | 2026-09-16 | active | implementation | [spec](../specs/2026-09-16-chat-bridge-mcp-design.md) | 16 tasks; bridges Claude Desktop ↔ ChatGPT Desktop on port 3057 via CDP |
+| [2026-09-16-chat-bridge-impl.md](./2026-09-16-chat-bridge-impl.md) | 2026-09-16 | active | implementation | [spec](../specs/2026-09-16-chat-bridge-design.md) | 16 tasks; bridges Claude Desktop ↔ ChatGPT Desktop on port 3057 via CDP |
 
 ## Specs
 
 | Spec | Date | Status | Topic |
 |---|---|---|---|
-| [../specs/2026-09-16-chat-bridge-mcp-design.md](../specs/2026-09-16-chat-bridge-mcp-design.md) | 2026-09-16 | complete | chat-bridge-mcp design |
+| [../specs/2026-09-16-chat-bridge-design.md](../specs/2026-09-16-chat-bridge-design.md) | 2026-09-16 | complete | chat-bridge-mcp design |
 
 ## Review Entry Points
 

@@ -11,6 +11,7 @@ shape end-to-end. The full tool surface (forward_chatgpt, ask_claude,
 etc.) is filled in by a later task; the stubs return the minimum the
 tests assert on.
 """
+
 from __future__ import annotations
 
 import json
@@ -212,19 +213,16 @@ def register_tools() -> None:
         except KeyError:
             from chat_bridge_mcp.exceptions import PeerNotAttachedError
 
-            return _render_error(
-                PeerNotAttachedError(peer, peer=peer), default_peer=peer
-            )
+            return _render_error(PeerNotAttachedError(peer, peer=peer), default_peer=peer)
         health = await client.health()
         return json.dumps(health.__dict__, default=str)
-
 
     @mcp.tool()
     async def list_peers() -> str:
         """Return the operator-facing roster of bound peers as a JSON array."""
         try:
             records: list[dict[str, object]] = []
-            for name, adapter in get_clients().items():
+            for adapter in get_clients().values():
                 health = await adapter.health()
                 records.append(
                     {

@@ -8,7 +8,7 @@ from chat_bridge_mcp.exceptions import (
     SelectorMissingError,
     SelectorUnmatchedError,
     StreamingTimeoutError,
-    GuardrailFailure,
+    GuardrailError,
     CDPProtocolError,
 )
 
@@ -20,7 +20,7 @@ from chat_bridge_mcp.exceptions import (
         SelectorMissingError,
         SelectorUnmatchedError,
         StreamingTimeoutError,
-        GuardrailFailure,
+        GuardrailError,
         CDPProtocolError,
     ],
 )
@@ -37,7 +37,7 @@ def test_peer_and_context_propagate():
 
 
 def test_peer_optional():
-    exc = GuardrailFailure("operator template missing begin marker")
+    exc = GuardrailError("operator template missing begin marker")
     assert exc.peer is None
     assert exc.context == {}
 

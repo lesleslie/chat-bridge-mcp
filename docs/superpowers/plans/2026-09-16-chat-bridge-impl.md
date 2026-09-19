@@ -5,7 +5,7 @@ date: 2026-09-16
 last_reviewed: 2026-09-19
 superseded_by: null
 blocks_on:
-  - docs/superpowers/specs/2026-09-16-chat-bridge-mcp-design.md
+  - docs/superpowers/specs/2026-09-16-chat-bridge-design.md
 topic: chat-bridge-mcp
 ---
 
@@ -19,7 +19,7 @@ topic: chat-bridge-mcp
 
 **Tech Stack:** Python ≥ 3.13, `mcp-common >= 0.25.1`, `oneiric >= 0.21.0`, `pydantic >= 2`, `websockets >= 11`, `pyyaml >= 6`, `httpx >= 0.27`, FastMCP, pytest, pytest-asyncio, crackerjack.
 
-**Spec:** [docs/superpowers/specs/2026-09-16-chat-bridge-mcp-design.md](../specs/2026-09-16-chat-bridge-mcp-design.md) — every task below argues from that spec; executors must read both.
+**Spec:** [docs/superpowers/specs/2026-09-16-chat-bridge-design.md](../specs/2026-09-16-chat-bridge-design.md) — every task below argues from that spec; executors must read both.
 
 ## Global Constraints
 
@@ -55,7 +55,7 @@ chat-bridge-mcp/                                 ← repo root
 ├── docs/
 │   ├── superpowers/
 │   │   ├── specs/2026-09-16-...-design.md
-│   │   └── plans/2026-09-16-chat-bridge-mcp-impl.md   ← this file
+│   │   └── plans/2026-09-16-chat-bridge-impl.md   ← this file
 │   └── (no other content)
 ├── chat_bridge_mcp/                              ← Python package
 │   ├── __init__.py                             ← version string, package docstring
@@ -3359,7 +3359,7 @@ git commit -m "test(e2e): headless Electron fixture + one e2e test gated by CHAT
 ````markdown
 # chat-bridge-mcp
 
-> **Status:** `draft` — v1.0.0 release candidate pending review (see [spec](docs/superpowers/specs/2026-09-16-chat-bridge-mcp-design.md) § 13 / Plan-to-spec tracking).
+> **Status:** `draft` — v1.0.0 release candidate pending review (see [spec](docs/superpowers/specs/2026-09-16-chat-bridge-design.md) § 13 / Plan-to-spec tracking).
 
 A standalone MCP server in the [`www-mcp-servers`](https://github.com/lesleslie/www-mcp-servers) fleet.
 Lets one Claude Desktop and one ChatGPT Desktop, running on the same machine,
@@ -3486,4 +3486,3 @@ If any check fails, fix the issue (new commit) before declaring done.
 - **T22**: `/health` returns 503 on degraded — blocked by an mcp-common API gap; needs upstream contract fix in mcp-common before chat-bridge-mcp can wire it up.
 
 **Implementer**: Plan is feature-complete for v0.1.0. v1.0.0 release has no scheduled date; the user retains control of version bumping and PyPI publishing (per `feedback-mcp-common-version-bump-is-user.md` and `crackerjack-version-bumping-manual.md`). To publish, the user runs `crackerjack run -p minor` from `/Users/les/Projects/chat-bridge-mcp` — that bumps `0.0.x → 0.1.0`, runs the gate, builds, and uploads to PyPI.
-

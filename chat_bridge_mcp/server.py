@@ -5,6 +5,7 @@ time so the @mcp.tool() decorators in _tools.py bind against it. The
 :class:`ChatBridgeServer` wraps the singleton and adds the
 startup/shutdown/health_check methods the mcp-common CLI factory expects.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -23,7 +24,7 @@ from chat_bridge_mcp.config import ChatBridgeConfig
 from chat_bridge_mcp.exceptions import (
     BridgeError,
     CDPProtocolError,
-    GuardrailFailure,
+    GuardrailError,
     PeerNotAttachedError,
     SelectorMissingError,
     SelectorUnmatchedError,
@@ -59,7 +60,7 @@ def _tool_error_string(exc: BridgeError) -> str:
     #   - SelectorMissingError: peer
     #   - SelectorUnmatchedError: peer, selector_name
     #   - StreamingTimeoutError: peer, timeout
-    #   - GuardrailFailure: (none)
+    #   - GuardrailError: (none)
     #   - CDPProtocolError: peer
     if isinstance(exc, PeerNotAttachedError):
         return f"{exc.peer} peer is not attached. Run `chat-bridge-mcp restart`."
@@ -73,7 +74,7 @@ def _tool_error_string(exc: BridgeError) -> str:
     if isinstance(exc, StreamingTimeoutError):
         timeout = (exc.context or {}).get("timeout", "?")
         return f"{exc.peer} response did not complete within {timeout}s."
-    if isinstance(exc, GuardrailFailure):
+    if isinstance(exc, GuardrailError):
         return "Internal: prompt rejected by guardrail. Report as a bug."
     if isinstance(exc, CDPProtocolError):
         return f"{exc.peer} CDP target returned an error. Run `chat-bridge-mcp restart`."

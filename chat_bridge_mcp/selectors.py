@@ -1,13 +1,15 @@
 from __future__ import annotations
 
-import platform
 from dataclasses import dataclass
-from pathlib import Path
+import platform
+from typing import TYPE_CHECKING
 
 import yaml
 
 from chat_bridge_mcp.exceptions import SelectorMissingError
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
 REQUIRED_KEYS = ("input_box", "send_button", "response_container")
 

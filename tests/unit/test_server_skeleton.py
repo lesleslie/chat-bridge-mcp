@@ -195,7 +195,7 @@ async def test_server_health_check_surfaces_peer_failure_as_error_dict() -> None
 def test_tool_error_string_falls_back_for_unknown_bridge_error() -> None:
     """An instance of BridgeError that isn't one of the known subclasses
     (PeerNotAttachedError, SelectorMissingError, SelectorUnmatchedError,
-    StreamingTimeoutError, GuardrailFailure, CDPProtocolError) falls
+    StreamingTimeoutError, GuardrailError, CDPProtocolError) falls
     through every isinstance check and hits the final `return "internal
     error; see logs"` line. Covers server.py:80.
     """

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from datetime import UTC, datetime
-from typing import Any
+import json
+from typing import TYPE_CHECKING, Any
 
 from chat_bridge_mcp.cdp import CDPConnection, CDPSession
 from chat_bridge_mcp.exceptions import (
@@ -12,7 +12,9 @@ from chat_bridge_mcp.exceptions import (
     StreamingTimeoutError,
 )
 from chat_bridge_mcp.peers.base import DesktopPeerAdapter, PeerReply
-from chat_bridge_mcp.selectors import SelectorSet
+
+if TYPE_CHECKING:
+    from chat_bridge_mcp.selectors import SelectorSet
 
 
 def _react_set_value_js(value: str) -> str:
@@ -53,12 +55,7 @@ def _react_clear_value_js() -> str:
 
 def _focus_input_js() -> str:
     """JS expression that focuses the input box before value injection."""
-    return (
-        "(() => {"
-        "  const el = document.querySelector(arguments[0]);"
-        "  if (el) el.focus();"
-        "})()"
-    )
+    return "(() => {  const el = document.querySelector(arguments[0]);  if (el) el.focus();})()"
 
 
 def _extract_last_response_js() -> str:
@@ -73,9 +70,7 @@ def _extract_last_response_js() -> str:
 
 def _extract_model_label_js() -> str:
     """JS expression that best-effort extracts the model label."""
-    return (
-        "document.querySelector('[data-testid=\"model-selector\"]')?.textContent ?? null"
-    )
+    return "document.querySelector('[data-testid=\"model-selector\"]')?.textContent ?? null"
 
 
 class ClaudeDesktopAdapter(DesktopPeerAdapter):
@@ -95,9 +90,7 @@ class ClaudeDesktopAdapter(DesktopPeerAdapter):
         # Local import: selectors loader imports config, avoid cycle.
         from chat_bridge_mcp.selectors import load_selectors
 
-        selectors_by_peer = await asyncio.to_thread(
-            load_selectors, self.config.selectors_file
-        )
+        selectors_by_peer = await asyncio.to_thread(load_selectors, self.config.selectors_file)
         self._selectors = selectors_by_peer["claude"]
         target = await CDPConnection.find_top_level_target(
             self.config.cdp_host, self.config.cdp_claude_port
@@ -173,17 +166,11 @@ class ClaudeDesktopAdapter(DesktopPeerAdapter):
         started = datetime.now(UTC)
 
         # 1. Clear the input box (React-friendly setter).
-        await session.evaluate(
-            f"({_react_clear_value_js()})({json.dumps(s.input_box)})"
-        )
+        await session.evaluate(f"({_react_clear_value_js()})({json.dumps(s.input_box)})")
         # 2. Focus the input box so the React onChange fires predictably.
-        await session.evaluate(
-            f"({_focus_input_js()})({json.dumps(s.input_box)})"
-        )
+        await session.evaluate(f"({_focus_input_js()})({json.dumps(s.input_box)})")
         # 3. Set the value (React-friendly setter) and dispatch Enter.
-        await session.evaluate(
-            f"({_react_set_value_js(prompt)})({json.dumps(s.input_box)})"
-        )
+        await session.evaluate(f"({_react_set_value_js(prompt)})({json.dumps(s.input_box)})")
         await session.dispatch_key_event("Enter", "Enter")
 
         # 4. Streaming-done detection.

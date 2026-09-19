@@ -32,7 +32,7 @@ import requests
 
 from chat_bridge_mcp.exceptions import (
     CDPProtocolError,
-    GuardrailFailure,
+    GuardrailError,
     PeerNotAttachedError,
     SelectorMissingError,
     SelectorUnmatchedError,
@@ -501,7 +501,7 @@ EXPECTED_CHAT_STRINGS: dict[type[Exception], str] = {
         "Update settings/selectors.yaml and `chat-bridge-mcp restart`."
     ),
     StreamingTimeoutError: "{peer} response did not complete within {timeout}s.",
-    GuardrailFailure: "Internal: prompt rejected by guardrail. Report as a bug.",
+    GuardrailError: "Internal: prompt rejected by guardrail. Report as a bug.",
     CDPProtocolError: "{peer} CDP target returned an error. Run `chat-bridge-mcp restart`.",
 }
 
