@@ -17,8 +17,6 @@ baseline tools (`discover_tools`, `get_liveness`, `get_readiness`, `health_check
 - **Plan**: `docs/superpowers/plans/2026-09-16-chat-bridge-impl.md` — design + spec history
 - **Edit rules / layout**: [AGENTS.md](AGENTS.md)
 - **Version status**: [CHANGELOG.md](CHANGELOG.md) — currently 0.1.0, no stable release scheduled
-- **Wire-up contract**: see `.claude/decisions/wire-up-contract.md` in the
-  mahavishnu repo for the MCP wiring discipline this repo conforms to.
 
 ## TL;DR
 

@@ -74,17 +74,6 @@ uv run mypy chat_bridge_mcp/
 | Types | `uv run mypy chat_bridge_mcp/` | ✅ clean |
 | Coverage | `--cov-fail-under=89` | ⚠️ 79.48% — gap in peers/{claude,chatgpt}.py streaming-done branches. v0.2.0 fix. |
 
-## Wire-up contract reminders
-
-Per `.claude/decisions/mcp-backend-wiring-discipline.md`:
-
-- Every `@mcp.tool()` MUST have a working data feed (i.e., be backed by a real
-  adapter + tests) — stubs that return placeholder strings do not count.
-- `/health` MUST aggregate the 4-signal `HealthFeedState` and return 503 on
-  degraded. (T22 still open at v0.1.0.)
-- e2e tests must assert non-empty results per tool. (v0.1.0 ships integration
-  tests only; e2e fixture is gated.)
-
 ## Per-peer collision contract (spec §5.6)
 
 Concurrent calls to the same peer do NOT serialize. Expect prompt-drop data
