@@ -5,11 +5,11 @@
 
 ## What this repo is
 
-`chat-bridge-mcp` is a FastMCP server (Bodai MCP, port 3057) that drives
+`chat-bridge-mcp` is a FastMCP server (port 3057) that drives
 Claude Desktop and ChatGPT Desktop via Chrome DevTools Protocol. It exposes
 6 chat-bridge tools (`ask_chatgpt`, `ask_claude`, `forward_chatgpt`,
-`forward_claude`, `list_peers`, `get_peer_health`) plus the 4 Bodai baseline
-tools (`discover_tools`, `get_liveness`, `get_readiness`, `health_check_all`).
+`forward_claude`, `list_peers`, `get_peer_health`) plus the 4 mcp-common
+baseline tools (`discover_tools`, `get_liveness`, `get_readiness`, `health_check_all`).
 
 ## Pointer
 
@@ -18,7 +18,7 @@ tools (`discover_tools`, `get_liveness`, `get_readiness`, `health_check_all`).
 - **Edit rules / layout**: [AGENTS.md](AGENTS.md)
 - **Version status**: [CHANGELOG.md](CHANGELOG.md) — currently 0.1.0, no stable release scheduled
 - **Wire-up contract**: see `.claude/decisions/wire-up-contract.md` in the
-  mahavishnu repo for the Bodai MCP wiring discipline this repo conforms to.
+  mahavishnu repo for the MCP wiring discipline this repo conforms to.
 
 ## TL;DR
 
