@@ -1,0 +1,6 @@
+{
+  "chat-bridge": {
+    "type": "http",
+    "url": "http://localhost:3057/mcp"
+  }
+}

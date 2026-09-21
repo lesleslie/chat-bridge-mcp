@@ -1,0 +1,17 @@
+{
+  "author": {
+    "name": "Wedgwood Web Works"
+  },
+  "description": "Plugin for the chat-bridge-mcp cross-app bridge server (Claude Desktop <-> ChatGPT Desktop via Chrome DevTools Protocol).",
+  "keywords": [
+    "mcp",
+    "chat-bridge",
+    "cross-app",
+    "cdp",
+    "browser-automation"
+  ],
+  "mcpServers": "./.mcp.json",
+  "name": "chat-bridge",
+  "schema_version": "1.0.0",
+  "version": "0.2.0"
+}

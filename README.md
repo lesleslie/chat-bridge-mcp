@@ -6,14 +6,13 @@
 > inventory and `docs/superpowers/specs/2026-09-16-chat-bridge-design.md` for
 > the design contract.
 
-A standalone Bodai MCP server in the [Bodai registry](https://github.com/lesleslie/mahavishnu/blob/main/BODAI_REPO_REGISTRY.md).
-Lets one Claude Desktop and one ChatGPT Desktop, running on the same machine,
+A standalone FastMCP server for cross-app bridging. Lets one Claude Desktop and one ChatGPT Desktop, running on the same machine,
 converse with each other through the bridge by driving each app's currently-active
 chat via Chrome DevTools Protocol.
 
 **6-tool MCP surface** (`ask_chatgpt`, `ask_claude`, `forward_chatgpt`,
 `forward_claude`, `list_peers`, `get_peer_health`) over Streamable HTTP on port 3057,
-plus the 4 Bodai baseline tools (`discover_tools`, `get_liveness`, `get_readiness`,
+plus the 4 mcp-common baseline tools (`discover_tools`, `get_liveness`, `get_readiness`,
 `health_check_all`).
 
 **OS support:** macOS and Windows are fully supported. Linux works against
