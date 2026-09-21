@@ -1,5 +1,11 @@
 # chat-bridge-mcp
 
+[![Code style: crackerjack](https://img.shields.io/badge/code%20style-crackerjack-000042)](https://github.com/lesleslie/crackerjack)
+[![Runtime: oneiric](https://img.shields.io/badge/runtime-oneiric-6e5494)](https://github.com/lesleslie/oneiric)
+[![Framework: FastMCP](https://img.shields.io/badge/framework-FastMCP-0ea5e9)](https://github.com/PrefectHQ/fastmcp)
+[![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
+[![Python: 3.14+](https://img.shields.io/badge/python-3.14%2B-green)](https://www.python.org/downloads/)
+
 > **Status:** `0.1.0` — early development; the 6-tool MCP surface and base wire-up are
 > in place but several HIGH/MEDIUM review findings are still open. No stable
 > release scheduled yet. See [CHANGELOG.md](CHANGELOG.md) for the v0.1.0
