@@ -20,7 +20,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
 ]
 dependencies = [
-  "mcp-common>=0.25.1",
+  "mcp-common>=0.30.0",
   "pydantic-settings~=2.6",
   "websockets>=11",
   "pyyaml>=6",
