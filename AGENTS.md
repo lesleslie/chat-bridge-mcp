@@ -86,7 +86,7 @@ by adding a lock — the test will fail.
 When picking up work, check in this order:
 
 1. `docs/superpowers/specs/2026-09-16-chat-bridge-design.md` — design contract
-2. `docs/superpowers/plans/2026-09-16-chat-bridge-impl.md` — implementation history
-3. `CHANGELOG.md` — current version inventory
-4. `git log --oneline -n 20` — recent commits
-5. The 6-agent multi-lens review (see commit history) — known gaps
+1. `docs/superpowers/plans/2026-09-16-chat-bridge-impl.md` — implementation history
+1. `CHANGELOG.md` — current version inventory
+1. `git log --oneline -n 20` — recent commits
+1. The 6-agent multi-lens review (see commit history) — known gaps

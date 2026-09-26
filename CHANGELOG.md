@@ -6,6 +6,22 @@ to [Semantic Versioning](https://semver.org/) within Bodai's pre-1.0 convention
 (surface additions are minor; wire-up fixes are patch; spec-breaking changes
 are major).
 
+## [0.2.1] - 2026-09-26
+
+### Added
+
+- plugins: Onboard as www-mcp-servers Claude Code plugin
+
+### Documentation
+
+- Add standard upstream-library badge block
+- Drop Bodai integration framing and add substrate note
+- Strip Bodai/Vishnu mentions from CLAUDE.md
+
+### Internal
+
+- chat-bridge-mcp: Refresh uv.lock for mcp-common 0.30.1
+
 ## [0.2.0] - 2026-09-19
 
 ### Added
@@ -33,13 +49,13 @@ are major).
 ### Fixed
 
 - chat-bridge-mcp: Rename selectors.yaml 'macos' to 'darwin' (T4 bug)
-- peers: Guard _ensure_session with asyncio.Lock to fix WS-leak race (T24)
+- peers: Guard \_ensure_session with asyncio.Lock to fix WS-leak race (T24)
 - peers: Include timeout in StreamingTimeoutError context (T23)
 - peers: Move sync YAML I/O off the event loop via asyncio.to_thread (T25)
 - pyproject+types: Add license/authors/classifiers/urls + tool config + coverage gate (T20)
 - Resolve crackerjack comprehensive-hook failures (creosote + linkcheckmd + refurb)
 - Resolve crackerjack fast-hook failures (ruff + check-local-links)
-- Revert "fix(peers): guard _ensure_session with asyncio.Lock to fix WS-leak race (T24)"
+- Revert "fix(peers): guard \_ensure_session with asyncio.Lock to fix WS-leak race (T24)"
 - tools: Catch Exception not BaseException so CancelledError propagates (T26)
 - tools: Implement spec §5.1.a — system prompt + empty-question validation (T20a)
 
@@ -84,8 +100,7 @@ are major).
   (CDPConnection, CDPSession; WebSocket via `websockets>=11`).
 - Peer adapters: `chat_bridge_mcp/peers/{claude,chatgpt}.py` — lazy WS open
   on the caller's event loop, 4-signal `HealthFeedState` per peer.
-- Guardrail: `chat_bridge_mcp/guardrail.py` — `wrap(source_reply, *,
-  source_peer, ask_for_opinion=True)` with per-call `secrets.token_urlsafe(32)`
+- Guardrail: `chat_bridge_mcp/guardrail.py` — `wrap(source_reply, *, source_peer, ask_for_opinion=True)` with per-call `secrets.token_urlsafe(32)`
   nonce and `<<nonce=base64>>` paired markers.
 - Selectors: `chat_bridge_mcp/selectors.py` + `settings/selectors.yaml`
   (darwin + windows blocks; REQUIRED_KEYS = input_box, send_button,

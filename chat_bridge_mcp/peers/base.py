@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+import time
 from typing import Any
 
 from mcp_common.health.feed import (
@@ -138,9 +138,7 @@ class DesktopPeerAdapter(ABC):
         if self._last_call_at is not None:
             ts: str = self._last_call_at.isoformat()
         elif self.feed_state.last_updated_timestamp is not None:
-            ts = datetime.fromtimestamp(
-                self.feed_state.last_updated_timestamp, UTC
-            ).isoformat()
+            ts = datetime.fromtimestamp(self.feed_state.last_updated_timestamp, UTC).isoformat()
         else:
             ts = datetime.now(UTC).isoformat()
         return PeerHealth(

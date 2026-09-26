@@ -60,8 +60,7 @@ open -a "ChatGPT" --args --remote-debugging-port=9230
 ```
 
 **Persistent launch** so CDP survives every login — wrap the commands in
-a shell script and add it as a login item (`System Settings → General →
-Login Items → +`):
+a shell script and add it as a login item (`System Settings → General → Login Items → +`):
 
 ```bash
 #!/usr/bin/env bash
@@ -100,11 +99,11 @@ Official apps (paths vary by installer version; common locations shown):
 **Persistent launch** (recommended for bridge operators):
 
 1. Right-click `claude.exe` → **Create shortcut**.
-2. Right-click the shortcut → **Properties** → **Shortcut** tab.
-3. Append `--remote-debugging-port=9229` to the **Target** field so it
+1. Right-click the shortcut → **Properties** → **Shortcut** tab.
+1. Append `--remote-debugging-port=9229` to the **Target** field so it
    reads `"...claude.exe" --remote-debugging-port=9229`.
-4. Repeat for `ChatGPT.exe` with `--remote-debugging-port=9230`.
-5. Move both shortcuts into the Startup folder: press `Win+R`, type
+1. Repeat for `ChatGPT.exe` with `--remote-debugging-port=9230`.
+1. Move both shortcuts into the Startup folder: press `Win+R`, type
    `shell:startup`, press Enter, drop the shortcuts there.
 
 **Verify CDP is listening** (PowerShell):
@@ -198,17 +197,17 @@ and ChatGPT Desktop by running these steps. **If any step fails, do not deploy.*
    to attach, /health returns 503 with entities_count == 0 for both — see
    [Concurrency](#concurrency--known-v1-limitations) for the per-peer
    collision contract.
-2. **`ask_chatgpt("Reply with the word 'pong'.")`** — expect "pong" within
+1. **`ask_chatgpt("Reply with the word 'pong'.")`** — expect "pong" within
    `streaming_timeout_seconds` (default 180s). The bridge types the prompt
    into ChatGPT Desktop's currently-active chat, presses Enter, and polls
    until streaming finishes.
-3. **`forward_chatgpt("claude", "What is 2+2?", ask_for_opinion=True)`** —
+1. **`forward_chatgpt("claude", "What is 2+2?", ask_for_opinion=True)`** —
    inspect the bridge's stdout/log for a line containing `<<nonce=...>>`
    twice (paired markers from the guardrail template). ChatGPT's reply will
    quote the wrapped text but treat it as data, not instructions.
-4. **`ask_claude(...)` and `forward_claude(...)`** — symmetric against
+1. **`ask_claude(...)` and `forward_claude(...)`** — symmetric against
    Claude Desktop.
-5. **`list_peers()` and `get_peer_health("chatgpt")`** — both should return
+1. **`list_peers()` and `get_peer_health("chatgpt")`** — both should return
    JSON with the four-signal `HealthFeedState`:
    - `entities_count >= 1` (peer is attached)
    - `cycles_total >= 1` (at least one successful round trip)

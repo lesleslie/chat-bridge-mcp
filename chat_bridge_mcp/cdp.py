@@ -61,9 +61,7 @@ class CDPSession:
         self._next_id = 0
         self._closed = False
 
-    async def send(
-        self, method: str, params: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def send(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Send JSON-RPC and await the matching response, skipping events.
 
         Raises:
@@ -87,9 +85,7 @@ class CDPSession:
                 try:
                     response = json.loads(raw)
                 except json.JSONDecodeError as exc:
-                    raise CDPProtocolError(
-                        f"CDP returned non-JSON: {raw!r}"
-                    ) from exc
+                    raise CDPProtocolError(f"CDP returned non-JSON: {raw!r}") from exc
                 # Skip events: messages with a `method` field are notifications
                 # from the target; messages without an `id` are not replies.
                 if "method" in response or "id" not in response:
@@ -98,11 +94,9 @@ class CDPSession:
                 if response["id"] != msg_id:
                     continue
                 if "error" in response:
-                    raise CDPProtocolError(
-                        f"CDP {method} returned error: {response['error']}"
-                    )
+                    raise CDPProtocolError(f"CDP {method} returned error: {response['error']}")
                 return response.get("result", {})  # type: ignore[no-any-return]
-        except (PeerNotAttachedError, CDPProtocolError, json.JSONDecodeError):
+        except PeerNotAttachedError, CDPProtocolError, json.JSONDecodeError:
             # Domain-level errors raised above propagate as-is so callers
             # can branch on the specific exception type.
             raise
@@ -116,9 +110,7 @@ class CDPSession:
                 context={"method": method, "ws_error": type(exc).__name__},
             ) from exc
 
-    async def evaluate(
-        self, expression: str, *, await_promise: bool = False
-    ) -> Any:
+    async def evaluate(self, expression: str, *, await_promise: bool = False) -> Any:
         """Run `expression` in the page's main frame and return the value."""
         result = await self.send(
             "Runtime.evaluate",
@@ -132,9 +124,7 @@ class CDPSession:
         if not isinstance(inner, dict):
             return None
         if "exceptionDetails" in inner:
-            raise CDPProtocolError(
-                f"Runtime.evaluate raised: {inner['exceptionDetails']}"
-            )
+            raise CDPProtocolError(f"Runtime.evaluate raised: {inner['exceptionDetails']}")
         return inner.get("value")
 
     async def dispatch_key_event(
@@ -159,14 +149,12 @@ class CDPSession:
         """Return the count of elements matching `selector` in the main frame."""
         # NodeList isn't always JSON-serializable by `returnByValue`, so
         # we ask JS for the length directly.
-        value = await self.evaluate(
-            f"document.querySelectorAll({json.dumps(selector)}).length"
-        )
+        value = await self.evaluate(f"document.querySelectorAll({json.dumps(selector)}).length")
         if value is None:
             return 0
         try:
             return int(value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return 0
 
     async def close(self) -> None:

@@ -7,4 +7,4 @@ from chat_bridge_mcp.peers.base import (
     PeerStatus,
 )
 
-__all__ = ["DesktopPeerAdapter", "PeerReply", "PeerStatus", "PeerHealth"]
+__all__ = ["DesktopPeerAdapter", "PeerHealth", "PeerReply", "PeerStatus"]

@@ -1,0 +1,254 @@
+{
+  "complexity": {
+    "Functions": [
+      {
+        "Name": "load_selectors",
+        "FilePath": "chat_bridge_mcp/selectors.py",
+        "StartLine": 25,
+        "StartColumn": 0,
+        "EndLine": 76,
+        "Metrics": {
+          "Complexity": 12,
+          "Nodes": 19,
+          "Edges": 27,
+          "NestingDepth": 3,
+          "IfStatements": 6,
+          "LoopStatements": 2,
+          "ExceptionHandlers": 5,
+          "SwitchCases": 0
+        },
+        "RiskLevel": "medium"
+      },
+      {
+        "Name": "ChatGPTDesktopAdapter._send_uncounted",
+        "FilePath": "chat_bridge_mcp/peers/chatgpt.py",
+        "StartLine": 164,
+        "StartColumn": 4,
+        "EndLine": 248,
+        "Metrics": {
+          "Complexity": 10,
+          "Nodes": 24,
+          "Edges": 33,
+          "NestingDepth": 4,
+          "IfStatements": 8,
+          "LoopStatements": 2,
+          "ExceptionHandlers": 1,
+          "SwitchCases": 0
+        },
+        "RiskLevel": "medium"
+      },
+      {
+        "Name": "ClaudeDesktopAdapter._send_uncounted",
+        "FilePath": "chat_bridge_mcp/peers/claude.py",
+        "StartLine": 161,
+        "StartColumn": 4,
+        "EndLine": 245,
+        "Metrics": {
+          "Complexity": 10,
+          "Nodes": 24,
+          "Edges": 33,
+          "NestingDepth": 4,
+          "IfStatements": 8,
+          "LoopStatements": 2,
+          "ExceptionHandlers": 1,
+          "SwitchCases": 0
+        },
+        "RiskLevel": "medium"
+      },
+      {
+        "Name": "_tool_error_string",
+        "FilePath": "chat_bridge_mcp/server.py",
+        "StartLine": 51,
+        "StartColumn": 0,
+        "EndLine": 81,
+        "Metrics": {
+          "Complexity": 7,
+          "Nodes": 13,
+          "Edges": 20,
+          "NestingDepth": 1,
+          "IfStatements": 6,
+          "LoopStatements": 0,
+          "ExceptionHandlers": 0,
+          "SwitchCases": 0
+        },
+        "RiskLevel": "low"
+      },
+      {
+        "Name": "ChatGPTDesktopAdapter._ensure_session",
+        "FilePath": "chat_bridge_mcp/peers/chatgpt.py",
+        "StartLine": 140,
+        "StartColumn": 4,
+        "EndLine": 162,
+        "Metrics": {
+          "Complexity": 6,
+          "Nodes": 8,
+          "Edges": 12,
+          "NestingDepth": 3,
+          "IfStatements": 2,
+          "LoopStatements": 0,
+          "ExceptionHandlers": 3,
+          "SwitchCases": 0
+        },
+        "RiskLevel": "low"
+      },
+      {
+        "Name": "ClaudeDesktopAdapter._ensure_session",
+        "FilePath": "chat_bridge_mcp/peers/claude.py",
+        "StartLine": 137,
+        "StartColumn": 4,
+        "EndLine": 159,
+        "Metrics": {
+          "Complexity": 6,
+          "Nodes": 8,
+          "Edges": 12,
+          "NestingDepth": 3,
+          "IfStatements": 2,
+          "LoopStatements": 0,
+          "ExceptionHandlers": 3,
+          "SwitchCases": 0
+        },
+        "RiskLevel": "low"
+      },
+      {
+        "Name": "wrap",
+        "FilePath": "chat_bridge_mcp/guardrail.py",
+        "StartLine": 24,
+        "StartColumn": 0,
+        "EndLine": 59,
+        "Metrics": {
+          "Complexity": 5,
+          "Nodes": 5,
+          "Edges": 8,
+          "NestingDepth": 1,
+          "IfStatements": 2,
+          "LoopStatements": 0,
+          "ExceptionHandlers": 2,
+          "SwitchCases": 0
+        },
+        "RiskLevel": "low"
+      }
+    ],
+    "Summary": {
+      "TotalFunctions": 7,
+      "AverageComplexity": 8,
+      "MaxComplexity": 12,
+      "MinComplexity": 5,
+      "FilesAnalyzed": 12,
+      "LowRiskFunctions": 4,
+      "MediumRiskFunctions": 3,
+      "HighRiskFunctions": 0,
+      "ComplexityDistribution": {
+        "11-20": 1,
+        "2-5": 1,
+        "6-10": 5
+      }
+    },
+    "Warnings": null,
+    "Errors": [
+      "[chat_bridge_mcp/cdp.py] Parse error: syntax errors found in source code"
+    ],
+    "GeneratedAt": "2026-09-26T16:51:51-07:00",
+    "Version": "1.5.0",
+    "Config": {
+      "exclude_patterns": [
+        "test_*.py",
+        "*_test.py"
+      ],
+      "include_patterns": [
+        "**/*.py"
+      ],
+      "low_threshold": 9,
+      "max_complexity": 0,
+      "medium_threshold": 19,
+      "min_complexity": 5,
+      "output_format": "json",
+      "recursive": false,
+      "show_details": false,
+      "sort_by": "complexity"
+    }
+  },
+  "dead_code": {
+    "files": null,
+    "summary": {
+      "total_files": 12,
+      "total_functions": 0,
+      "total_findings": 0,
+      "files_with_dead_code": 0,
+      "functions_with_dead_code": 0,
+      "critical_findings": 0,
+      "warning_findings": 0,
+      "info_findings": 0,
+      "findings_by_reason": {},
+      "total_blocks": 0,
+      "dead_blocks": 0,
+      "overall_dead_ratio": 0
+    },
+    "warnings": null,
+    "errors": [
+      "[chat_bridge_mcp/cdp.py] Parse error: syntax errors found in source code"
+    ],
+    "generated_at": "2026-09-26T16:51:51-07:00",
+    "version": "1.5.0",
+    "config": {
+      "context_lines": 3,
+      "detect_after_break": true,
+      "detect_after_continue": true,
+      "detect_after_raise": true,
+      "detect_after_return": true,
+      "detect_unreachable_branches": true,
+      "exclude_patterns": [
+        "test_*.py",
+        "*_test.py"
+      ],
+      "ignore_patterns": [],
+      "include_patterns": [
+        "**/*.py"
+      ],
+      "min_severity": "warning",
+      "show_context": false,
+      "sort_by": "severity"
+    }
+  },
+  "summary": {
+    "total_files": 12,
+    "analyzed_files": 12,
+    "skipped_files": 0,
+    "complexity_enabled": true,
+    "dead_code_enabled": true,
+    "clone_enabled": false,
+    "cbo_enabled": false,
+    "deps_enabled": false,
+    "arch_enabled": false,
+    "deps_total_modules": 0,
+    "deps_modules_in_cycles": 0,
+    "deps_max_depth": 0,
+    "deps_main_sequence_deviation": 0,
+    "arch_compliance": 0,
+    "total_functions": 7,
+    "average_complexity": 8,
+    "high_complexity_count": 0,
+    "dead_code_count": 0,
+    "critical_dead_code": 0,
+    "warning_dead_code": 0,
+    "info_dead_code": 0,
+    "total_clones": 0,
+    "clone_pairs": 0,
+    "clone_groups": 0,
+    "code_duplication_percentage": 0,
+    "cbo_classes": 0,
+    "high_coupling_classes": 0,
+    "medium_coupling_classes": 0,
+    "average_coupling": 0,
+    "health_score": 91,
+    "grade": "A",
+    "complexity_score": 55,
+    "dead_code_score": 100,
+    "duplication_score": 100,
+    "coupling_score": 100,
+    "dependency_score": 100,
+    "architecture_score": 100
+  },
+  "generated_at": "2026-09-26T16:51:51.999407-07:00",
+  "duration_ms": 61,
+  "version": "1.5.0"
+}
