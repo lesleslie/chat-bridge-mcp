@@ -217,7 +217,7 @@ def test_attach_succeeds_for_both_peers(bridge_proc: dict[str, object]) -> None:
     """Pinned by name in spec §9.1: both peers attached at startup."""
     port = int(bridge_proc["port"])  # type: ignore[arg-type]
     body = requests.get(f"http://127.0.0.1:{port}/health", timeout=2).json()
-    assert body["status"] == "ok"
+    assert body["status"] == "healthy"
     assert body["service"] == "chat-bridge-mcp"
     component_names = {c["name"] for c in body.get("components", [])}
     assert "claude" in component_names
