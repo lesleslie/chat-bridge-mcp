@@ -185,6 +185,14 @@ If a peer fails to attach, the bridge stderr will surface a
 `PeerNotAttachedError` — most commonly the CDP port isn't listening yet
 or the chat window isn't focused.
 
+## Configuration
+
+| Setting | Default | Description |
+|---|---|---|
+| `CHAT_BRIDGE_MCP_CDP_CLAUDE_PORT` | `9229` | Port Claude Desktop listens on for CDP. |
+| `CHAT_BRIDGE_MCP_CDP_CHATGPT_PORT` | `9230` | Port ChatGPT Desktop listens on for CDP. |
+| `CHAT_BRIDGE_TOOL_PROFILE` | `full` | Tool profile gate (env var per Bodai convention; no `_MCP_` suffix). Values: `full` (all 6 chat-bridge tools + 4 Bodai baseline tools), `minimal` (no tool groups). |
+
 ## First-install manual smoke-test (mandatory)
 
 The e2e tier cannot exercise the React-controlled-input event trick the bridge

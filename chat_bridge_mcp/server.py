@@ -32,6 +32,7 @@ from chat_bridge_mcp.exceptions import (
 )
 from chat_bridge_mcp.peers.chatgpt import ChatGPTDesktopAdapter
 from chat_bridge_mcp.peers.claude import ClaudeDesktopAdapter
+from chat_bridge_mcp.tools.profiles import apply_chat_bridge_tool_profile
 
 # Module-level FastMCP singleton. _tools.register_tools() binds @mcp.tool()
 # decorators against this instance at import time (Task 10). MUST stay
@@ -46,6 +47,15 @@ _tools.register_tools()
 # picker can find them. Registered after the chat-bridge tools so list_tools()
 # returns the full 6 + 4 = 10 surface.
 bootstrap_baseline_tools(mcp)
+
+# Honor the CHAT_BRIDGE_TOOL_PROFILE env var (Plan 9 wiring). The W0
+# helper detects the module-load synchronous context (no event loop),
+# uses ``asyncio.run()`` to drive the async profile dispatch, and
+# re-registers ``discover_tools`` with the canonical shape. Tools
+# themselves are already bound via decorators above; the dispatcher
+# is primarily for env-var compliance and discover_tools canonical-
+# ization in this repo (others use it for actual tool gating).
+apply_chat_bridge_tool_profile(mcp)
 
 
 def _tool_error_string(exc: BridgeError) -> str:
