@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 resolution-markers = [
     "python_full_version >= '3.15'",
@@ -551,7 +551,7 @@ wheels = [
 
 [[package]]
 name = "chat-bridge-mcp"
-version = "0.2.0"
+version = "0.2.1"
 source = { editable = "." }
 dependencies = [
     { name = "fastmcp" },
@@ -578,7 +578,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "crackerjack", marker = "extra == 'dev'" },
-    { name = "fastmcp", specifier = ">=2" },
+    { name = "fastmcp", specifier = ">=4.0.0,<5" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "mcp-common", specifier = ">=0.30.0" },
     { name = "pydantic-settings", specifier = "~=2.6" },
