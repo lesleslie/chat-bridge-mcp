@@ -4,15 +4,16 @@ Maps ``ToolProfile`` levels to specific ``register_<group>_tools()``
 call lists, controlling which tools are honored at module-load based on
 the ``CHAT_BRIDGE_TOOL_PROFILE`` environment variable.
 
-Profile tiers (single-tier; chat-bridge-mcp's tool surface is bound at
-module import via ``@mcp.tool()`` decorators against the module-level
-FastMCP singleton — chat-bridge-mcp does not lazily register groups,
-so the profile dispatcher exists for env-var compliance + the standard
-``discover_tools`` meta-tool; future dispatch work would refactor
-``_tools.register_tools`` into per-group lambdas):
+Profile tiers (the dispatch in ``chat_bridge_mcp.server`` is the SOLE owner
+of chat-bridge tool registration — the 6 ``@mcp.tool()`` decorators in
+``_tools.py`` are bound by the selected profile's registration group, never
+eagerly at import):
 
-    MINIMAL:  No tool groups registered (only ``discover_tools`` meta-tool
-              + /health HTTP route via ``mcp_common.health.register_http_health_route``).
+    MINIMAL:  No chat-bridge tool groups registered. The 4 Bodai baseline
+              tools (``discover_tools``, ``get_liveness``, ``get_readiness``,
+              ``health_check_all``) remain — ``bootstrap_baseline_tools``
+              runs for every profile — and the /health HTTP route is
+              registered via ``mcp_common.health.register_http_health_route``.
     FULL:     All 6 chat-bridge tools (``ask_chatgpt``, ``ask_claude``,
               ``forward_chatgpt``, ``forward_claude``, ``get_peer_health``,
               ``list_peers``) plus the 4 Bodai baseline tools
@@ -73,13 +74,19 @@ def apply_chat_bridge_tool_profile(server: FastMCP) -> None:
     (``mcp_common.tools.dispatch.apply_tool_profile``) detects this and
     internally spins an event loop via ``asyncio.run()``.
 
-    The ``register_chat_bridge_tools`` lambda re-invokes
-    ``_tools.register_tools``, which is idempotent (guarded by the
-    ``_tools_registered`` module-level flag set on first call from
-    ``server.py``). It is a no-op on subsequent invocations, so the
-    FULL profile effectively acknowledges the already-bound tool
-    surface and ensures ``discover_tools`` is registered with the
-    W0-canonical shape.
+    The ``register_chat_bridge_tools`` lambda calls ``_tools.register_tools``,
+    which binds the 6 ``@mcp.tool()`` decorators against the module-level
+    FastMCP singleton. It is idempotent (guarded by the ``_tools_registered``
+    module-level flag), so the FULL profile binds the chat-bridge surface
+    exactly once. Under MINIMAL this lambda is never invoked, so the
+    chat-bridge tools are never bound at all.
+
+    The dispatch must be the sole owner of registration: mcp-common's
+    dispatcher can register a group but never unregister one, so binding the
+    tools eagerly in ``server.py`` before the dispatch ran made the gate fail
+    open (MINIMAL still exposed all 6 tools). Pinned by
+    ``tests/integration/test_tool_profile_gating.py`` and
+    ``tests/test_wiring.py::test_server_does_not_register_tools_eagerly``.
 
     chat-bridge-mcp exposes no MCP-registered health tools (only the
     /health HTTP route via ``register_http_health_route``), so the
@@ -92,10 +99,12 @@ def apply_chat_bridge_tool_profile(server: FastMCP) -> None:
     from chat_bridge_mcp._tools import register_tools
 
     def register_chat_bridge_tools(_server: FastMCP) -> None:
-        """Idempotently bind ``@mcp.tool()`` decorators.
+        """Bind the ``@mcp.tool()`` decorators for the chat-bridge group.
 
-        ``_tools.register_tools`` is a no-op on subsequent calls (the
-        first call from ``server.py`` set ``_tools_registered = True``).
+        ``_tools.register_tools`` is idempotent (guarded by the
+        ``_tools_registered`` module-level flag), so the FULL profile binds
+        the chat-bridge surface exactly once. Under MINIMAL this lambda is
+        never invoked, so the chat-bridge tools are never bound at all.
         The W0 helper requires a ``register_all_fn`` callable when
         ``registrations[FULL]`` is a list of group names; we pass this
         idempotent wrapper so the helper's per-group call is safe.

@@ -212,7 +212,27 @@ or the chat window isn't focused.
 |---|---|---|
 | `CHAT_BRIDGE_MCP_CDP_CLAUDE_PORT` | `9229` | Port Claude Desktop listens on for CDP. |
 | `CHAT_BRIDGE_MCP_CDP_CHATGPT_PORT` | `9230` | Port ChatGPT Desktop listens on for CDP. |
-| `CHAT_BRIDGE_TOOL_PROFILE` | `full` | Tool profile gate (env var per Bodai convention; no `_MCP_` suffix). Values: `full` (all 6 chat-bridge tools + 4 Bodai baseline tools), `minimal` (no tool groups). |
+| `CHAT_BRIDGE_TOOL_PROFILE` | `full` | Tool profile gate (env var per Bodai convention; no `_MCP_` suffix). Values: `full` (all 6 chat-bridge tools + 4 Bodai baseline tools), `minimal` (no chat-bridge tools — the 4 Bodai baseline tools stay). Unset means `full`; an invalid value fails startup rather than falling back. |
+
+### Tool profile
+
+`CHAT_BRIDGE_TOOL_PROFILE` selects which MCP tools the server exposes:
+
+| Profile | Chat-bridge tools | Bodai baseline tools |
+|---|---|---|
+| `full` (default) | all 6 | all 4 |
+| `minimal` | none | all 4 |
+
+The `minimal` profile drops the 6 tools that drive Claude Desktop and
+ChatGPT Desktop (`ask_chatgpt`, `ask_claude`, `forward_chatgpt`,
+`forward_claude`, `list_peers`, `get_peer_health`). The 4 Bodai baseline
+tools (`discover_tools`, `get_liveness`, `get_readiness`,
+`health_check_all`) and the `/health` HTTP route stay registered for every
+profile — they carry no chat-surface access.
+
+An unset variable selects `full`. A set-but-invalid value
+(`CHAT_BRIDGE_TOOL_PROFILE=bogus`) raises `InvalidProfileError` at startup
+rather than silently falling back to the full surface.
 
 ## First-install manual smoke-test (mandatory)
 
