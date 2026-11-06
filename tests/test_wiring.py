@@ -32,3 +32,34 @@ def test_server_calls_apply_chat_bridge_tool_profile() -> None:
         "chat_bridge_mcp/server.py must call apply_chat_bridge_tool_profile() "
         "or _apply_tool_profile() to wire the CHAT_BRIDGE_TOOL_PROFILE env var"
     )
+
+
+def test_server_does_not_register_tools_eagerly() -> None:
+    """The profile dispatch must be the SOLE owner of tool registration.
+
+    ``server.py`` used to call ``_tools.register_tools()`` unconditionally at
+    module import, before the profile dispatch ran. mcp-common's dispatch is
+    additive-only — it can register a group but never unregister one — so
+    binding the tools first made CHAT_BRIDGE_TOOL_PROFILE fail open: the
+    ``minimal`` profile still exposed all 6 chat-bridge tools.
+
+    The behavioral counterpart is
+    ``tests/integration/test_tool_profile_gating.py``; this static guard
+    catches the regression at the source instead of only at the surface.
+    """
+    server_path = Path("chat_bridge_mcp/server.py")
+    tree = ast.parse(server_path.read_text())
+    eager_calls = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "register_tools"
+    ]
+    assert not eager_calls, (
+        "chat_bridge_mcp/server.py must not call register_tools() directly — "
+        "the profile dispatch owns registration. An eager call makes "
+        "CHAT_BRIDGE_TOOL_PROFILE fail open because mcp-common's dispatch "
+        "cannot unregister already-bound tools."
+    )
+

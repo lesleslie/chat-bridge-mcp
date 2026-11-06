@@ -34,27 +34,28 @@ from chat_bridge_mcp.peers.chatgpt import ChatGPTDesktopAdapter
 from chat_bridge_mcp.peers.claude import ClaudeDesktopAdapter
 from chat_bridge_mcp.tools.profiles import apply_chat_bridge_tool_profile
 
-# Module-level FastMCP singleton. _tools.register_tools() binds @mcp.tool()
-# decorators against this instance at import time (Task 10). MUST stay
-# module-level so that any code importing `from chat_bridge_mcp.server
-# import mcp` gets the same instance regardless of how many
-# ChatBridgeServer objects exist.
+# Module-level FastMCP singleton. MUST stay module-level so that any code
+# importing `from chat_bridge_mcp.server import mcp` gets the same instance
+# regardless of how many ChatBridgeServer objects exist.
 mcp = FastMCP("chat-bridge-mcp")
-_tools.register_tools()
 
 # Bodai baseline tools (discover_tools, get_liveness, get_readiness,
 # health_check_all) — every Bodai MCP server exposes these so Claude Code's
-# picker can find them. Registered after the chat-bridge tools so list_tools()
-# returns the full 6 + 4 = 10 surface.
+# picker can find them. Registered for every profile.
 bootstrap_baseline_tools(mcp)
 
 # Honor the CHAT_BRIDGE_TOOL_PROFILE env var (Plan 9 wiring). The W0
 # helper detects the module-load synchronous context (no event loop),
 # uses ``asyncio.run()`` to drive the async profile dispatch, and
-# re-registers ``discover_tools`` with the canonical shape. Tools
-# themselves are already bound via decorators above; the dispatcher
-# is primarily for env-var compliance and discover_tools canonical-
-# ization in this repo (others use it for actual tool gating).
+# re-registers ``discover_tools`` with the canonical shape.
+#
+# This dispatch is the SOLE owner of chat-bridge tool registration: the 6
+# @mcp.tool() decorators in _tools.py are bound by the selected profile's
+# registration group, never eagerly at import. mcp-common's dispatch is
+# additive-only (it can register groups but never unregister them), so
+# binding the tools *before* the dispatch made the gate fail open — a
+# MINIMAL profile could not remove the already-bound tools.
+# Pinned by tests/integration/test_tool_profile_gating.py.
 apply_chat_bridge_tool_profile(mcp)
 
 
