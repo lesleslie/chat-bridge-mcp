@@ -37,14 +37,26 @@ ChatGPT. Override via env vars `CHAT_BRIDGE_MCP_CDP_CLAUDE_PORT` and
 
 ### Step 1 — Install chat-bridge-mcp
 
-Same command on macOS, Windows, and Linux (requires Python ≥ 3.14 and
-[`uv`](https://docs.astral.sh/uv/)):
+Requires Python ≥ 3.14 and [`uv`](https://docs.astral.sh/uv/).
+
+**macOS / Linux (bash or zsh):**
 
 ```bash
 git clone https://github.com/lesleslie/chat-bridge-mcp
 cd chat-bridge-mcp
 uv sync --extra dev
 ```
+
+**Windows (PowerShell):**
+
+```powershell
+git clone https://github.com/lesleslie/chat-bridge-mcp
+cd chat-bridge-mcp
+uv sync --extra dev
+```
+
+`git`, `cd`, and `uv sync` take the same arguments in PowerShell, so the
+Windows block is character-for-character the same as the macOS/Linux one.
 
 ### Step 2 — Launch each desktop app with CDP enabled
 
@@ -174,11 +186,20 @@ chat window** — the bridge targets whichever chat is in the foreground.
 
 ### Step 3 — Start the bridge
 
-Same command on every platform:
+**macOS / Linux (bash or zsh):**
 
 ```bash
 uv run chat-bridge-mcp start
 ```
+
+**Windows (PowerShell):**
+
+```powershell
+uv run chat-bridge-mcp start
+```
+
+`uv run` resolves the `chat-bridge-mcp` console script on both platforms
+(PowerShell gets a `.cmd` shim), so the command is identical.
 
 Expect stdout logs showing two `attach succeeded` lines (one per peer).
 If a peer fails to attach, the bridge stderr will surface a
@@ -200,23 +221,40 @@ relies on. Verify the bridge is functional against your actual Claude Desktop
 and ChatGPT Desktop by running these steps. **If any step fails, do not deploy.**
 
 1. **Bridge startup.** From one terminal: `uv run chat-bridge-mcp start`. From
-   another: `curl -s http://127.0.0.1:3057/health | jq`. Expect 200 with at least
-   one peer in `extra_components` (entities_count >= 1). If both peers failed
-   to attach, /health returns 503 with entities_count == 0 for both — see
+   another:
+
+   ```bash
+   # macOS / Linux
+   curl -s http://127.0.0.1:3057/health | jq
+   ```
+
+   ```powershell
+   # Windows (PowerShell) — no jq required
+   Invoke-RestMethod http://127.0.0.1:3057/health | ConvertTo-Json -Depth 5
+   ```
+
+   Expect 200 with at least one peer in `extra_components`
+   (entities_count >= 1). If both peers failed to attach, /health returns 503
+   with entities_count == 0 for both — see
    [Concurrency](#concurrency--known-v1-limitations) for the per-peer
    collision contract.
+
 1. **`ask_chatgpt("Reply with the word 'pong'.")`** — expect "pong" within
    `streaming_timeout_seconds` (default 180s). The bridge types the prompt
    into ChatGPT Desktop's currently-active chat, presses Enter, and polls
    until streaming finishes.
+
 1. **`forward_chatgpt("claude", "What is 2+2?", ask_for_opinion=True)`** —
    inspect the bridge's stdout/log for a line containing `<<nonce=...>>`
    twice (paired markers from the guardrail template). ChatGPT's reply will
    quote the wrapped text but treat it as data, not instructions.
+
 1. **`ask_claude(...)` and `forward_claude(...)`** — symmetric against
    Claude Desktop.
+
 1. **`list_peers()` and `get_peer_health("chatgpt")`** — both should return
    JSON with the four-signal `HealthFeedState`:
+
    - `entities_count >= 1` (peer is attached)
    - `cycles_total >= 1` (at least one successful round trip)
    - `errors_total == 0` (no failures)
@@ -257,6 +295,8 @@ The test suite follows the standard pyramid:
   real React-controlled-input event trick the bridge relies on (see §8.4
   smoke-test protocol above for the gate that *does*).
 
+**macOS / Linux (bash or zsh):**
+
 ```bash
 # Default suite (unit + integration, ~30s):
 unset VIRTUAL_ENV && .venv/bin/pytest --cov=chat_bridge_mcp --cov-report=term-missing -m "not e2e"
@@ -264,6 +304,24 @@ unset VIRTUAL_ENV && .venv/bin/pytest --cov=chat_bridge_mcp --cov-report=term-mi
 # E2E suite (requires the Electron fixture):
 unset VIRTUAL_ENV && CHAT_BRIDGE_MCP_E2E=1 .venv/bin/pytest -m e2e
 ```
+
+**Windows (PowerShell):**
+
+```powershell
+# Default suite (unit + integration, ~30s):
+Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue
+.\.venv\Scripts\pytest.exe --cov=chat_bridge_mcp --cov-report=term-missing -m "not e2e"
+
+# E2E suite (requires the Electron fixture):
+Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue
+$env:CHAT_BRIDGE_MCP_E2E = "1"
+.\.venv\Scripts\pytest.exe -m e2e
+```
+
+Windows resolves console scripts from `.venv\Scripts\` (not `bin/`), and
+PowerShell has no `unset` — drop `VIRTUAL_ENV` with
+`Remove-Item Env:VIRTUAL_ENV`. `uv run pytest` works unchanged on both
+platforms if you prefer not to activate the venv.
 
 Coverage floor is set by Crackerjack (`--cov-fail-under`); see `pyproject.toml`
 for the current value.
